@@ -6,8 +6,9 @@ string ist die Zeichenset Library (ASCII, Ziffern, Zeichen)
 """
 
 class PasswordGenerator:
+    # Konstanten
     MIN_LENGTH = 8
-    MAX_LENGTH = 128
+    MAX_LENGTH = 64
 
     UPPERCASE = string.ascii_uppercase
     LOWERCASE = string.ascii_lowercase
@@ -16,6 +17,7 @@ class PasswordGenerator:
 
     @staticmethod
     def validate_length(length: int) -> bool:
+        # Länge muss innerhalb von Konstanten sein
         if length < PasswordGenerator.MIN_LENGTH or length > PasswordGenerator.MAX_LENGTH:
             return False
         else:
@@ -23,27 +25,27 @@ class PasswordGenerator:
 
     @staticmethod
     def validate_options(use_uppercase, use_lowercase, use_digits, use_special):
-
+        # es muss mindestens eine Option aktiv sein
         if use_uppercase or use_lowercase or use_digits or use_special:
             return True
         else:
             return False
 
     @staticmethod
-    def generate(length=16, use_uppercase=True, use_lowercase=True,
+    def generate(length=12, use_uppercase=True, use_lowercase=True,
                  use_digits=True, use_special=True):
+        # Ganze Logik um es zu generieren
 
-        # 1. Validiere length
+        # Länge validieren
         if not PasswordGenerator.validate_length(length):
             raise ValueError(f"Password must be between {PasswordGenerator.MIN_LENGTH} and {PasswordGenerator.MAX_LENGTH}"
             )
-
-        # 2. Validiere options
+        # Optionen validieren
         if not PasswordGenerator.validate_options(use_uppercase, use_lowercase,
                                                   use_digits, use_special):
             raise ValueError("Choose at least one type")
 
-        # 3. Baue Zeichen-Pool
+        # Leeres Zeichen Pool initialisieren
         characters = ""
 
         if use_uppercase:
@@ -58,8 +60,7 @@ class PasswordGenerator:
         if use_special:
             characters += PasswordGenerator.SPECIAL
 
-        # 4. Generiere Passwort
+        # Je nachdem welche Option gewählt ist Passwort generieren
         password = ''.join(secrets.choice(characters) for _ in range(length))
 
-        # 5. Return
         return password

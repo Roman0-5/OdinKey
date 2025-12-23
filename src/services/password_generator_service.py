@@ -1,27 +1,25 @@
-import secrets
-import string
 from src.crypto.generator import PasswordGenerator
 class PasswordGeneratorService:
-    def generate_password(self, length: int = 16,
+    def generate_password(self, length: int = 12,
                           use_uppercase: bool = True,
                           use_lowercase: bool = True,
                           use_digits: bool = True,
-                          use_specials: bool = True) -> dict:
+                          use_special: bool = True) -> dict:
         try:
             password = PasswordGenerator.generate(
                 length=length,
                 use_uppercase=use_uppercase,
                 use_lowercase=use_lowercase,
                 use_digits=use_digits,
-                use_special=use_specials
+                use_special=use_special
             )
 
             return {
-                'sucess': True,
+                'success': True,
                 'password': password
             }
         except Exception as e:
             return {
-                'sucess': False,
+                'success': False,
                 'error': str(e)
             }
