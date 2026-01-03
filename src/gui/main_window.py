@@ -35,71 +35,44 @@ def load_custom_font(font_path):
 
 
 # State pattern: import state classes from separate files (absolute import for script run)
-from src.gui.login_state import LoginState
-from src.gui.registration_state import RegistrationState
-from src.gui.dashboard_state import DashboardState
+from src.gui.login_frame import LoginFrame
+from src.gui.registration_frame import RegistrationFrame
+from src.gui.dashboard_frame import DashboardFrame
+
 
 class StartWindow:
     """
     Main application window for OdinKey.
-    Handles login, registration, and dashboard transitions using State pattern.
+    Manages only the active Frame (Login, Registration, Dashboard).
     All UI is styled with customtkinter and Norse font.
     """
-    def set_state(self, state):
-        self._state = state
-        self._state.show()
-
-    def show_login(self):
-        self.set_state(LoginState(self))
-
-    def show_create_master(self):
-        self.set_state(RegistrationState(self))
-
-    def open_dashboard(self):
-        self.set_state(DashboardState(self))
     def __init__(self, master):
-        """
-        Initialize the start window and all UI components.
-        Checks if a master account exists in the database and shows the appropriate form.
-        :param master: The root Tkinter window.
-        """
-        # Create database connection and repository for master account
         db_conn = DatabaseConnection()
         repo = MasterAccountRepository(db_conn)
-        # Service for authentication and registration logic
         self.service = MasterAccountService(repo)
 
-        # Set up the main window appearance and theme
-        ctk.set_appearance_mode("dark")  # Use dark mode for the app
+        ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("dark-blue")
         self.master = master
         self.master.title("OdinKey 🗝️ | Viking Password Manager")
-        self.master.geometry("400x500")  # Set initial window size
-        self.master.configure(bg="#232323")  # Set background color
+        self.master.geometry("400x500")
+        self.master.configure(bg="#232323")
 
-        # Load custom Norse font for branding
         assets_dir = os.path.join(os.path.dirname(__file__), 'assets')
         font_path = os.path.join(assets_dir, 'Norse.otf')
         load_custom_font(font_path)
-        # Path to background image
         self.bg_path = os.path.join(assets_dir, 'odin_panel_bg.png')
         self.bg_img = None
         self.background_label = None
 
-        # Main frame for the app content
         self.frame = ctk.CTkFrame(self.master, fg_color="#232323")
         self.frame.pack(fill="both", expand=True)
-        # Glass effect panel for forms and content
-        self.glass_panel = ctk.CTkFrame(self.frame, fg_color="#232323", corner_radius=40, border_width=2, border_color="#e0c97f")
-        self.glass_panel.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.98, relheight=0.93)
-        # Bind window resize event to handler
+        self.active_frame = None
+        self.session = None
         self.master.bind("<Configure>", self.on_resize)
-        self.set_background()  # Set the background image
+        self.set_background()
 
-        # Check if master account exists in the database
-        # If yes, show login form; if not, show registration form
         exists = repo.account_exists()
-        # Debug: print result and count rows
         conn = db_conn.connect()
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM master_account")
@@ -107,9 +80,43 @@ class StartWindow:
         conn.close()
         print(f"[DEBUG] account_exists: {exists}, rows in master_account: {count}")
         if exists:
-            self.set_state(LoginState(self))
+            self.show_login()
         else:
-            self.set_state(RegistrationState(self))
+            self.show_create_master()
+
+    def clear_active_frame(self):
+        if self.active_frame is not None:
+            self.active_frame.destroy()
+            self.active_frame = None
+
+    def show_login(self):
+        self.clear_active_frame()
+        self.active_frame = LoginFrame(
+            self.frame,
+            on_login=self.login,
+            show_logo=self.show_logo
+        )
+        self.active_frame.pack(fill="both", expand=True)
+
+    def show_create_master(self):
+        self.clear_active_frame()
+        self.active_frame = RegistrationFrame(
+            self.frame,
+            on_register=self.create_master,
+            show_logo=self.show_logo,
+            on_back=self.show_login
+        )
+        self.active_frame.pack(fill="both", expand=True)
+
+    def open_dashboard(self):
+        self.clear_active_frame()
+        self.active_frame = DashboardFrame(
+            self.frame,
+            session=self.session,
+            show_success_modal=self.show_success_modal,
+            show_error_modal=self.show_error_modal
+        )
+        self.active_frame.pack(fill="both", expand=True)
 
     def set_background(self):
         """
@@ -132,33 +139,20 @@ class StartWindow:
                 # Update the image if the label already exists
                 self.background_label.configure(image=self.bg_img)
 
+
     def on_resize(self, event):
         """
         Handle window resize events.
         Adjusts the background image and input field widths for responsiveness.
+        Only resizes widgets of the current active Frame.
         """
         if event.widget == self.master:
-            self.set_background()  # Update background image size
-            # Dynamically adjust field widths based on window size
+            self.set_background()
             field_width = min(320, max(200, int(event.width * 0.7)))
-            # Adjust login form fields
-            if hasattr(self, 'username_entry'):
-                self.username_entry.configure(width=field_width)
-            if hasattr(self, 'password_entry'):
-                self.password_entry.configure(width=field_width)
-            if hasattr(self, 'login_btn'):
-                self.login_btn.configure(width=field_width)
-            if hasattr(self, 'register_btn'):
-                self.register_btn.configure(width=field_width)
-            # Adjust registration form fields
-            if hasattr(self, 'new_username_entry'):
-                self.new_username_entry.configure(width=field_width)
-            if hasattr(self, 'new_password_entry'):
-                self.new_password_entry.configure(width=field_width)
-            if hasattr(self, 'repeat_password_entry'):
-                self.repeat_password_entry.configure(width=field_width)
-            if hasattr(self, 'create_btn'):
-                self.create_btn.configure(width=field_width)
+            if self.active_frame and hasattr(self.active_frame, 'get_entries'):
+                for widget in self.active_frame.get_entries():
+                    if hasattr(widget, 'configure'):
+                        widget.configure(width=field_width)
 
     def show_logo(self, parent):
         """
@@ -175,22 +169,16 @@ class StartWindow:
         rune_label.pack(pady=(18, 0))
 
 
-    def login(self):
-        """
-        Handle the login button click.
-        Checks the entered credentials with the backend service.
-        If login is successful, show a custom modal and then open the dashboard.
-        If login fails, show a custom error modal.
-        """
-        username = self.username_entry.get()  # Get entered username
-        password = self.password_entry.get()  # Get entered password
 
-        result = self.service.login(username, password)  # Check credentials
+    def login(self, username, password):
+        result = self.service.login(username, password)
         if result:
-            # Show a custom modal for success, then open dashboard
+            account, master_key = result
+            from src.core.session import Session
+            self.session = Session()
+            self.session.start(account, master_key)
             self.show_success_modal("Login successful!", on_close=self.open_dashboard)
         else:
-            # Show custom error modal if login failed
             self.show_error_modal("Wrong username or password.")
     def show_error_modal(self, message, on_close=None):
         """
@@ -268,30 +256,18 @@ class StartWindow:
         ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
         ok_btn.pack(pady=(0, 10))
 
-    def create_master(self):
-        """
-        Handle the create master account button click.
-        Checks if passwords match and meet length requirements, then saves to backend.
-        Shows a success message if account is created, otherwise shows an error.
-        After successful creation, shows the login form.
-        """
-        username = self.new_username_entry.get()  # Get entered username
-        pw1 = self.new_password_entry.get()       # Get entered password
-        pw2 = self.repeat_password_entry.get()    # Get repeated password
-        # Check if both entered passwords match
+
+    def create_master(self, username, pw1, pw2):
         if pw1 != pw2:
             self.show_error_modal("Passwords do not match.")
             return
-        # Check if password is at least 8 characters long
         if len(pw1) < 8:
             self.show_error_modal("Password too short (min 8 chars).")
             return
         try:
-            # Try to register the new master account
             self.service.register_account(username, pw1)
             self.show_success_modal("Master account created.", on_close=self.show_login)
         except Exception as e:
-            # Show error if registration fails (e.g., username taken)
             self.show_error_modal(str(e))
 
 

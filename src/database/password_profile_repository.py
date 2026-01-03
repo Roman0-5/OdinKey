@@ -6,6 +6,41 @@ from src.database.connection import DatabaseConnection
 
 
 class PasswordProfileRepository:
+    def delete_profile(self, profile_id: int) -> None:
+        """
+        Löscht ein Passwort-Profil anhand der ID.
+        """
+        query = "DELETE FROM password_profiles WHERE id = ?"
+        with self.db.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (profile_id,))
+            conn.commit()
+    def update_profile(self, profile: PasswordProfile) -> None:
+        """
+        Updates an existing password profile (fields and encrypted password).
+        """
+        nonce, encrypted_password = self.crypto.encrypt_data(self.master_key, profile.password)
+        salt = b""
+        query = """
+            UPDATE password_profiles
+            SET service_name = ?, url = ?, username = ?, password_blob = ?, nonce = ?, salt = ?, notes = ?, created_at = ?
+            WHERE id = ?
+        """
+        with self.db.connect() as conn:
+            cursor = conn.cursor()
+            cursor.execute(query, (
+                profile.service_name,
+                profile.url,
+                profile.username,
+                encrypted_password,
+                nonce,
+                salt,
+                profile.notes,
+                profile.created_at,
+                profile.id
+            ))
+            conn.commit()
+
     def __init__(self, db_connection: DatabaseConnection, master_key: bytes):
         """
         Initialisiert das Repository.
