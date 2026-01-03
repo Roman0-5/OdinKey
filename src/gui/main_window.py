@@ -33,51 +33,30 @@ def load_custom_font(font_path):
     else:
         print(f"Font file not found: {font_path}")
 
+
+# State pattern: import state classes from separate files (absolute import for script run)
+from src.gui.login_state import LoginState
+from src.gui.registration_state import RegistrationState
+from src.gui.dashboard_state import DashboardState
+
 class StartWindow:
     """
     Main application window for OdinKey.
-    Handles login, registration, and dashboard transitions.
+    Handles login, registration, and dashboard transitions using State pattern.
     All UI is styled with customtkinter and Norse font.
     """
+    def set_state(self, state):
+        self._state = state
+        self._state.show()
+
+    def show_login(self):
+        self.set_state(LoginState(self))
+
     def show_create_master(self):
-        """
-        Display the master account creation form (registration).
-        This form is only shown if there is no master account in the database.
-        """
-        self.clear_window()  # Remove any previous widgets from the panel
-        # Create a frame for the registration form
-        self.create_panel = ctk.CTkFrame(self.glass_panel, fg_color="#232323", corner_radius=30)
-        self.create_panel.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.82, relheight=0.82)
-        self.show_logo(self.create_panel)  # Show the app logo at the top
-        # Title label for the registration form
-        self.title_label = ctk.CTkLabel(
-            self.create_panel, text="CREATE MASTER",
-            font=("Norse", 32, "bold"), text_color="#e0c97f"
-        )
-        self.title_label.pack(pady=(10, 20))
-        # Entry for new username
-        self.new_username_entry = ctk.CTkEntry(self.create_panel, placeholder_text="Username", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        self.new_username_entry.pack(pady=5)
-        # Entry for new password (masked)
-        self.new_password_entry = ctk.CTkEntry(self.create_panel, placeholder_text="Password", show="*", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        self.new_password_entry.pack(pady=5)
-        # Entry to repeat new password (masked)
-        self.repeat_password_entry = ctk.CTkEntry(self.create_panel, placeholder_text="Repeat Password", show="*", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        self.repeat_password_entry.pack(pady=5)
-        # Button to submit registration
-        self.create_btn = ctk.CTkButton(
-            self.create_panel, text="CREATE", command=self.create_master,
-            fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323",
-            font=("Norse", 20, "bold"), width=260, corner_radius=18
-        )
-        self.create_btn.pack(pady=20)
-        # Button to go back to login form (should not be visible if no account exists, but for navigation)
-        self.back_to_login_btn = ctk.CTkButton(
-            self.create_panel, text="Back to Login", command=self.show_login,
-            fg_color="#232323", hover_color="#e0c97f", text_color="#e0c97f",
-            font=("Norse", 16), width=120, corner_radius=12, border_width=1, border_color="#e0c97f"
-        )
-        self.back_to_login_btn.pack(pady=(0, 10))
+        self.set_state(RegistrationState(self))
+
+    def open_dashboard(self):
+        self.set_state(DashboardState(self))
     def __init__(self, master):
         """
         Initialize the start window and all UI components.
@@ -119,10 +98,18 @@ class StartWindow:
 
         # Check if master account exists in the database
         # If yes, show login form; if not, show registration form
-        if repo.account_exists():
-            self.show_login()
+        exists = repo.account_exists()
+        # Debug: print result and count rows
+        conn = db_conn.connect()
+        cursor = conn.cursor()
+        cursor.execute("SELECT COUNT(*) FROM master_account")
+        count = cursor.fetchone()[0]
+        conn.close()
+        print(f"[DEBUG] account_exists: {exists}, rows in master_account: {count}")
+        if exists:
+            self.set_state(LoginState(self))
         else:
-            self.show_create_master()
+            self.set_state(RegistrationState(self))
 
     def set_background(self):
         """
@@ -187,42 +174,13 @@ class StartWindow:
         )
         rune_label.pack(pady=(18, 0))
 
-    def show_login(self):
-        """
-        Display the login form for existing master account.
-        Registration is only available if no master account exists.
-        """
-        self.clear_window()  # Remove previous widgets
-        # Create a frame for the login form
-        self.login_panel = ctk.CTkFrame(self.glass_panel, fg_color="#232323", corner_radius=30)
-        self.login_panel.place(relx=0.5, rely=0.5, anchor="center", relwidth=0.82, relheight=0.82)
-        self.show_logo(self.login_panel)  # Show the app logo at the top
-        # Title label for the login form
-        self.title_label = ctk.CTkLabel(
-            self.login_panel, text="ODINKEY",
-            font=("Norse", 38, "bold"), text_color="#e0c97f"
-        )
-        self.title_label.pack(pady=(10, 10))
-        # Username entry field
-        self.username_entry = ctk.CTkEntry(self.login_panel, placeholder_text="Username", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        self.username_entry.pack(pady=10)
-        # Password entry field (masked)
-        self.password_entry = ctk.CTkEntry(self.login_panel, placeholder_text="Password", show="*", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        self.password_entry.pack(pady=(0, 20))
-        # Login button
-        self.login_btn = ctk.CTkButton(
-            self.login_panel, text="LOGIN", command=self.login,
-            fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323",
-            font=("Norse", 20, "bold"), width=260, corner_radius=18
-        )
-        self.login_btn.pack(pady=(0, 10))
 
     def login(self):
         """
         Handle the login button click.
         Checks the entered credentials with the backend service.
         If login is successful, show a custom modal and then open the dashboard.
-        If login fails, show an error popup.
+        If login fails, show a custom error modal.
         """
         username = self.username_entry.get()  # Get entered username
         password = self.password_entry.get()  # Get entered password
@@ -232,8 +190,45 @@ class StartWindow:
             # Show a custom modal for success, then open dashboard
             self.show_success_modal("Login successful!", on_close=self.open_dashboard)
         else:
-            # Show error popup if login failed
-            messagebox.showerror("Login", "Wrong password.")
+            # Show custom error modal if login failed
+            self.show_error_modal("Wrong username or password.")
+    def show_error_modal(self, message, on_close=None):
+        """
+        Show a custom modal window styled like the main app for error messages.
+        This modal blocks interaction with the main window until closed.
+        :param message: The error message to display in the modal.
+        :param on_close: Optional callback to run after closing the modal.
+        """
+        modal = ctk.CTkToplevel(self.master)  # Create a new top-level window
+        modal.title("Login Error")
+        modal.geometry("320x180")
+        modal.resizable(False, False)
+        modal.configure(bg="#232323")
+        modal.grab_set()  # Block interaction with main window
+        # Center modal on the main window
+        modal.update_idletasks()
+        x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (320 // 2)
+        y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (180 // 2)
+        modal.geometry(f"320x180+{x}+{y}")
+
+        # Frame for modal content
+        frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+        # Icon label for visual feedback (error)
+        icon_label = ctk.CTkLabel(frame, text="⛔", font=("Norse", 48), text_color="#e06c6c", fg_color="transparent")
+        icon_label.pack(pady=(18, 0))
+        # Message label
+        msg_label = ctk.CTkLabel(frame, text=message, font=("Norse", 20), text_color="#e06c6c", fg_color="transparent")
+        msg_label.pack(pady=(10, 10))
+        # Function to close the modal and call the callback
+        def close_modal():
+            modal.grab_release()
+            modal.destroy()
+            if on_close:
+                on_close()
+        # OK button to close the modal
+        ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#e06c6c", hover_color="#e0c97f", text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
+        ok_btn.pack(pady=(0, 10))
 
     def show_success_modal(self, message, on_close=None):
         """
@@ -285,34 +280,20 @@ class StartWindow:
         pw2 = self.repeat_password_entry.get()    # Get repeated password
         # Check if both entered passwords match
         if pw1 != pw2:
-            messagebox.showerror("Error", "Passwords do not match.")
+            self.show_error_modal("Passwords do not match.")
             return
         # Check if password is at least 8 characters long
         if len(pw1) < 8:
-            messagebox.showerror("Error", "Password too short (min 8 chars).")
+            self.show_error_modal("Password too short (min 8 chars).")
             return
         try:
             # Try to register the new master account
             self.service.register_account(username, pw1)
-            messagebox.showinfo("Success", "Master account created.")
-            self.show_login()  # After successful creation, show login form
+            self.show_success_modal("Master account created.", on_close=self.show_login)
         except Exception as e:
             # Show error if registration fails (e.g., username taken)
-            messagebox.showerror("Error", str(e))
+            self.show_error_modal(str(e))
 
-    def open_dashboard(self):
-        """
-        Placeholder for dashboard window after successful login.
-        In a real application, this would show the main app content.
-        """
-        self.clear_window()  # Remove previous widgets
-        dashboard_label = ctk.CTkLabel(
-            self.glass_panel,
-            text="Dashboard (to be implemented)",
-            font=("Norse", 28, "bold"),
-            text_color="#e0c97f"
-        )
-        dashboard_label.pack(pady=40)
 
     def clear_window(self):
         """
