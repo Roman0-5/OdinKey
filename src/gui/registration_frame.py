@@ -39,7 +39,7 @@ class RegistrationFrame(ctk.CTkFrame):
         )
         self.back_to_login_btn.pack(pady=(0, 10))
 
-    def _register(self):
+    def _submit_registration(self):
         username = self.new_username_entry.get()
         pw1 = self.new_password_entry.get()
         pw2 = self.repeat_password_entry.get()
