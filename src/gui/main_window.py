@@ -1,19 +1,22 @@
-
-
 # Import standard libraries for system and OS operations
 import sys
 import os
 import ctypes
 # Import PIL for image processing (backgrounds, icons)
 from PIL import Image, ImageTk
+
 # Add the project root to sys.path so we can import modules from src/
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-
 
 # Import project modules for database and authentication logic
 from src.services.master_account_service import MasterAccountService
 from src.database.connection import DatabaseConnection
 from src.database.repository import MasterAccountRepository
+
+# --- NEU: Backend-Service für Profile (WICHTIG!) ---
+from src.services.password_profile_service import PasswordProfileService
+from src.database.password_profile_repository import PasswordProfileRepository
+# ---------------------------------------------------
 
 
 # Import customtkinter for modern Tkinter UI and messagebox for error popups
@@ -24,17 +27,14 @@ from tkinter import messagebox
 def load_custom_font(font_path):
     """
     Loads a custom font from the given path into the Windows font table.
-    This allows the application to use custom fonts (e.g., Norse) in the UI.
-    If the font file is missing, prints a warning to the console.
     """
     if os.path.exists(font_path):
-        # 0x10 = FR_PRIVATE, 0x20 = FR_NOT_ENUM (private font, not system-wide)
         ctypes.windll.gdi32.AddFontResourceExW(font_path, 0x10, 0)
     else:
         print(f"Font file not found: {font_path}")
 
 
-# State pattern: import state classes from separate files (absolute import for script run)
+# State pattern: import state classes from separate files
 from src.gui.login_frame import LoginFrame
 from src.gui.registration_frame import RegistrationFrame
 from src.gui.dashboard_frame import DashboardFrame
@@ -44,11 +44,14 @@ class StartWindow:
     """
     Main application window for OdinKey.
     Manages only the active Frame (Login, Registration, Dashboard).
-    All UI is styled with customtkinter and Norse font.
     """
+
     def __init__(self, master):
-        db_conn = DatabaseConnection()
-        repo = MasterAccountRepository(db_conn)
+        # 1. DB Verbindung in 'self' speichern, damit wir sie später noch haben
+        self.db_conn = DatabaseConnection()
+        self.db_conn.create_tables()
+
+        repo = MasterAccountRepository(self.db_conn)
         self.service = MasterAccountService(repo)
 
         ctk.set_appearance_mode("dark")
@@ -73,12 +76,16 @@ class StartWindow:
         self.set_background()
 
         exists = repo.account_exists()
-        conn = db_conn.connect()
+
+        # Verbindung prüfen (Fix für den NameError von vorhin)
+        conn = self.db_conn.connect()
+
         cursor = conn.cursor()
         cursor.execute("SELECT COUNT(*) FROM master_account")
         count = cursor.fetchone()[0]
         conn.close()
         print(f"[DEBUG] account_exists: {exists}, rows in master_account: {count}")
+
         if exists:
             self.show_login()
         else:
@@ -110,42 +117,40 @@ class StartWindow:
 
     def open_dashboard(self):
         self.clear_active_frame()
+
+
+        # 1. Repository erstellen (braucht Master Key aus der Session)
+        profile_repo = PasswordProfileRepository(self.db_conn, self.session.get_master_key())
+
+        # 2. Service erstellen (verbindet Repo und Auth-Service)
+        profile_service = PasswordProfileService(profile_repo, self.service)
+        # ---------------------------
+
+        # 3. Service an DashboardFrame übergeben
         self.active_frame = DashboardFrame(
             self.frame,
             session=self.session,
+            profile_service=profile_service,
             show_success_modal=self.show_success_modal,
             show_error_modal=self.show_error_modal
         )
         self.active_frame.pack(fill="both", expand=True)
 
     def set_background(self):
-        """
-        Set the background image for the main window.
-        The image is resized to fit the window and placed behind all widgets.
-        """
         if os.path.exists(self.bg_path):
             w = self.master.winfo_width()
             h = self.master.winfo_height()
-            # Open and resize the background image
             img = Image.open(self.bg_path).convert("RGBA")
             img = img.resize((w, h), Image.LANCZOS)
             self.bg_img = ctk.CTkImage(light_image=img, dark_image=img, size=(w, h))
             if not self.background_label:
-                # Create a label for the background image if it doesn't exist
                 self.background_label = ctk.CTkLabel(self.master, image=self.bg_img, text="")
                 self.background_label.place(x=0, y=0, relwidth=1, relheight=1)
-                self.background_label.lower()  # Send to back
+                self.background_label.lower()
             else:
-                # Update the image if the label already exists
                 self.background_label.configure(image=self.bg_img)
 
-
     def on_resize(self, event):
-        """
-        Handle window resize events.
-        Adjusts the background image and input field widths for responsiveness.
-        Only resizes widgets of the current active Frame.
-        """
         if event.widget == self.master:
             self.set_background()
             field_width = min(320, max(200, int(event.width * 0.7)))
@@ -155,20 +160,14 @@ class StartWindow:
                         widget.configure(width=field_width)
 
     def show_logo(self, parent):
-        """
-        Display a large viking rune as the logo at the top of the given parent widget.
-        This is used for branding and visual identity of the application.
-        """
         rune_label = ctk.CTkLabel(
             parent,
-            text="ᚠ",  # Unicode rune character for visual effect
+            text="ᚠ",
             font=("Norse", 100),
             text_color="#e0c97f",
             fg_color="transparent"
         )
         rune_label.pack(pady=(18, 0))
-
-
 
     def login(self, username, password):
         result = self.service.login(username, password)
@@ -180,82 +179,70 @@ class StartWindow:
             self.show_success_modal("Login successful!", on_close=self.open_dashboard)
         else:
             self.show_error_modal("Wrong username or password.")
+
     def show_error_modal(self, message, on_close=None):
-        """
-        Show a custom modal window styled like the main app for error messages.
-        This modal blocks interaction with the main window until closed.
-        :param message: The error message to display in the modal.
-        :param on_close: Optional callback to run after closing the modal.
-        """
-        modal = ctk.CTkToplevel(self.master)  # Create a new top-level window
-        modal.title("Login Error")
+        modal = ctk.CTkToplevel(self.master)
+        modal.title("Error")
         modal.geometry("320x180")
         modal.resizable(False, False)
         modal.configure(bg="#232323")
-        modal.grab_set()  # Block interaction with main window
-        # Center modal on the main window
+        modal.grab_set()
+
         modal.update_idletasks()
         x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (320 // 2)
         y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (180 // 2)
         modal.geometry(f"320x180+{x}+{y}")
 
-        # Frame for modal content
         frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
         frame.pack(fill="both", expand=True, padx=10, pady=10)
-        # Icon label for visual feedback (error)
+
         icon_label = ctk.CTkLabel(frame, text="⛔", font=("Norse", 48), text_color="#e06c6c", fg_color="transparent")
         icon_label.pack(pady=(18, 0))
-        # Message label
+
         msg_label = ctk.CTkLabel(frame, text=message, font=("Norse", 20), text_color="#e06c6c", fg_color="transparent")
         msg_label.pack(pady=(10, 10))
-        # Function to close the modal and call the callback
+
         def close_modal():
             modal.grab_release()
             modal.destroy()
             if on_close:
                 on_close()
-        # OK button to close the modal
-        ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#e06c6c", hover_color="#e0c97f", text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
+
+        ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#e06c6c", hover_color="#e0c97f",
+                               text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
         ok_btn.pack(pady=(0, 10))
 
     def show_success_modal(self, message, on_close=None):
-        """
-        Show a custom modal window styled like the main app for success messages.
-        This modal blocks interaction with the main window until closed.
-        :param message: The message to display in the modal.
-        :param on_close: Optional callback to run after closing the modal.
-        """
-        modal = ctk.CTkToplevel(self.master)  # Create a new top-level window
-        modal.title("Login")
+        modal = ctk.CTkToplevel(self.master)
+        modal.title("Success")
         modal.geometry("320x180")
         modal.resizable(False, False)
         modal.configure(bg="#232323")
-        modal.grab_set()  # Block interaction with main window
-        # Center modal on the main window
+        modal.grab_set()
+
         modal.update_idletasks()
         x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (320 // 2)
         y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (180 // 2)
         modal.geometry(f"320x180+{x}+{y}")
 
-        # Frame for modal content
         frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
         frame.pack(fill="both", expand=True, padx=10, pady=10)
-        # Icon label for visual feedback
+
         icon_label = ctk.CTkLabel(frame, text="᛬", font=("Norse", 48), text_color="#e0c97f", fg_color="transparent")
         icon_label.pack(pady=(18, 0))
-        # Message label
+
         msg_label = ctk.CTkLabel(frame, text=message, font=("Norse", 20), text_color="#e0c97f", fg_color="transparent")
         msg_label.pack(pady=(10, 10))
-        # Function to close the modal and call the callback
+
         def close_modal():
             modal.grab_release()
             modal.destroy()
             if on_close:
                 on_close()
-        # OK button to close the modal
-        ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
-        ok_btn.pack(pady=(0, 10))
 
+        ok_btn = ctk.CTkButton(frame, text="OK", command=close_modal, fg_color="#b8860b", hover_color="#e0c97f",
+                               text_color="#232323", font=("Norse", 18, "bold"), width=100, corner_radius=14)
+        ok_btn.pack(pady=(0, 10))
 
     def create_master(self, username, pw1, pw2):
         if pw1 != pw2:
@@ -270,18 +257,12 @@ class StartWindow:
         except Exception as e:
             self.show_error_modal(str(e))
 
-
     def clear_window(self):
-        """
-        Remove all widgets from the glass panel (not the background frame).
-        This is used to switch between forms and views.
-        """
         for widget in self.glass_panel.winfo_children():
             widget.destroy()
 
 
-# Entry point for the application
 if __name__ == "__main__":
-    root = ctk.CTk()  # Create the main Tkinter window
-    app = StartWindow(root)  # Initialize the StartWindow class
-    root.mainloop()  # Start the Tkinter event loop
+    root = ctk.CTk()
+    app = StartWindow(root)
+    root.mainloop()

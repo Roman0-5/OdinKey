@@ -1,5 +1,6 @@
 import customtkinter as ctk
 
+
 class RegistrationFrame(ctk.CTkFrame):
     def __init__(self, master, on_register, show_logo, on_back, *args, **kwargs):
         super().__init__(master, fg_color="#232323", corner_radius=30, *args, **kwargs)
@@ -20,18 +21,28 @@ class RegistrationFrame(ctk.CTkFrame):
             self, text="CREATE MASTER ACCOUNT",
             font=("Norse", 32, "bold"), text_color="#e0c97f"
         ).pack(pady=(10, 20))
-        self.new_username_entry = ctk.CTkEntry(self, placeholder_text="Username", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
+        self.new_username_entry = ctk.CTkEntry(self, placeholder_text="Username", width=260, fg_color="#2d2d2d",
+                                               border_color="#e0c97f", border_width=2, text_color="#e0c97f")
         self.new_username_entry.pack(pady=5)
-        self.new_password_entry = ctk.CTkEntry(self, placeholder_text="Password", show="*", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
+        self.new_password_entry = ctk.CTkEntry(self, placeholder_text="Password", show="*", width=260,
+                                               fg_color="#2d2d2d", border_color="#e0c97f", border_width=2,
+                                               text_color="#e0c97f")
         self.new_password_entry.pack(pady=5)
-        self.repeat_password_entry = ctk.CTkEntry(self, placeholder_text="Repeat Password", show="*", width=260, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
+        self.repeat_password_entry = ctk.CTkEntry(self, placeholder_text="Repeat Password", show="*", width=260,
+                                                  fg_color="#2d2d2d", border_color="#e0c97f", border_width=2,
+                                                  text_color="#e0c97f")
         self.repeat_password_entry.pack(pady=5)
+
+        # --- HIER WAR DER FEHLER ---
+        # Alt: command=self._register (existiert nicht in deiner Klasse, ruft internes Tkinter-Zeug auf)
+        # Neu: command=self._submit_registration (ruft deine Methode unten auf)
         self.create_btn = ctk.CTkButton(
-            self, text="CREATE", command=self._register,
+            self, text="CREATE", command=self._submit_registration,
             fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323",
             font=("Norse", 20, "bold"), width=260, corner_radius=18
         )
         self.create_btn.pack(pady=20)
+
         self.back_to_login_btn = ctk.CTkButton(
             self, text="Back to Login", command=self.on_back,
             fg_color="#232323", hover_color="#e0c97f", text_color="#e0c97f",
@@ -46,4 +57,5 @@ class RegistrationFrame(ctk.CTkFrame):
         self.on_register(username, pw1, pw2)
 
     def get_entries(self):
-        return [self.new_username_entry, self.new_password_entry, self.repeat_password_entry, self.create_btn, self.back_to_login_btn]
+        return [self.new_username_entry, self.new_password_entry, self.repeat_password_entry, self.create_btn,
+                self.back_to_login_btn]

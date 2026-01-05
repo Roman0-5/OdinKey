@@ -31,7 +31,10 @@ from src.services.password_generator_service import PasswordGeneratorService
 from src.core.password_profile import PasswordProfile
 from src.database.password_profile_repository import PasswordProfileRepository
 
-# <--- NEU: Unser Shared Utility Modul
+# <--- NEU: Backend-Service Import ---
+from src.services.password_profile_service import PasswordProfileService
+# ------------------------------------
+
 from src.utils.clipboard import copy_with_timeout
 
 # --- SETUP ---
@@ -71,7 +74,7 @@ def print_menu_logged_in(username):
     print(f" {Fore.CYAN}add{Style.RESET_ALL}      - Neues Passwort speichern")
     print(f" {Fore.CYAN}delete{Style.RESET_ALL}   - Eintrag löschen")
     print(f" {Fore.CYAN}generate{Style.RESET_ALL} - Passwort generieren")
-    print(f" {Fore.CYAN}search{Style.RESET_ALL} - Nach Einträgen suchen")
+    print(f" {Fore.CYAN}search{Style.RESET_ALL}   - Nach Einträgen suchen")
     print(f" {Fore.CYAN}logout{Style.RESET_ALL}   - Tresor schließen")
     print("-" * 30)
 
@@ -195,9 +198,15 @@ def handle_add():
             password=password
         )
 
-        # Repository initialisieren (braucht Master Key zum Verschlüsseln)
+        # 1. Repository initialisieren (braucht Master Key zum Verschlüsseln)
         repo_profile = PasswordProfileRepository(db_conn, session.get_master_key())
-        repo_profile.create_profile(profile)
+
+        # 2. Service erstellen (Backend-Lösung)
+        # Wir übergeben 'service' (MasterAccountService) für eventuelle Checks
+        profile_service = PasswordProfileService(repo_profile, service)
+
+        # 3. Speichern über Service
+        profile_service.create_profile(profile)
 
         print(Fore.GREEN + f"Eintrag für '{service_name}' erfolgreich verschlüsselt gespeichert!" + Style.RESET_ALL)
 
@@ -275,7 +284,7 @@ def reveal_password(profile_id):
 
 
 def handle_delete():
-    """Löscht einen Eintrag nach erneuter Passwort-Bestätigung."""
+    """Löscht einen Eintrag nach erneuter Passwort-Bestätigung (Über Backend-Service)."""
     if not session.is_active():
         return
 
@@ -293,19 +302,22 @@ def handle_delete():
         print("Master-Passwort: ", end="", flush=True)
         conf_pw = getpass.getpass("")
 
-        # Prüfung über Login-Funktion
-        if not service.login(session.account.username, conf_pw):
-            print(Fore.RED + "Falsches Passwort. Löschen abgebrochen." + Style.RESET_ALL)
-            return
-
+        # 1. Service aufbauen (gleiches Muster wie bei Add)
         repo_profile = PasswordProfileRepository(db_conn, session.get_master_key())
+        profile_service = PasswordProfileService(repo_profile, service)
 
-        profile = repo_profile.get_profile_by_id(profile_id)
-        if profile and profile.user_id == session.account.id:
-            repo_profile.delete_profile(profile_id)
+        # 2. Sicheres Löschen ausführen
+        # Wenn das Passwort falsch ist, wirft der Service einen PermissionError
+        try:
+            profile_service.delete_profile_securely(
+                profile_id=profile_id,
+                username=session.account.username,
+                password_attempt=conf_pw
+            )
             print(Fore.GREEN + f"Eintrag ID {profile_id} wurde unwiderruflich gelöscht." + Style.RESET_ALL)
-        else:
-            print(Fore.RED + "Eintrag nicht gefunden." + Style.RESET_ALL)
+
+        except PermissionError:
+            print(Fore.RED + "Falsches Passwort. Löschen abgebrochen." + Style.RESET_ALL)
 
     except ValueError:
         print(Fore.RED + "Ungültige ID." + Style.RESET_ALL)
@@ -353,8 +365,6 @@ def handle_search():
 
 def interactive_loop():
     print_banner()
-
-    # Initiale Menü-Anzeige
     print_menu_logged_out()
 
     while True:
@@ -372,7 +382,7 @@ def interactive_loop():
             parts = user_input.split()
             command = parts[0].lower()
 
-            # --- BEFEHLSVERARBEITUNG ---
+
 
             if command in ["exit", "quit", "q"]:
                 print("Auf Wiedersehen!")
