@@ -71,6 +71,7 @@ def print_menu_logged_in(username):
     print(f" {Fore.CYAN}add{Style.RESET_ALL}      - Neues Passwort speichern")
     print(f" {Fore.CYAN}delete{Style.RESET_ALL}   - Eintrag löschen")
     print(f" {Fore.CYAN}generate{Style.RESET_ALL} - Passwort generieren")
+    print(f" {Fore.CYAN}search{Style.RESET_ALL} - Nach Einträgen suchen")
     print(f" {Fore.CYAN}logout{Style.RESET_ALL}   - Tresor schließen")
     print("-" * 30)
 
@@ -312,6 +313,44 @@ def handle_delete():
         print(Fore.RED + f"Fehler: {e}" + Style.RESET_ALL)
 
 
+def handle_search():
+    """Sucht nach Einträgen über das Repository."""
+    if not session.is_active():
+        return
+
+    query = input("Suchbegriff: ").strip()
+    if not query:
+        return
+
+    try:
+        # Repository initialisieren
+        repo_profile = PasswordProfileRepository(db_conn, session.get_master_key())
+        profiles = repo_profile.search_profiles(session.account.id, query)
+
+        if not profiles:
+            print(Fore.YELLOW + "Keine Treffer." + Style.RESET_ALL)
+            return
+
+        print(f"\n{Fore.CYAN}{'ID':<5} {'Service':<20} {'Username':<25} {'URL'}{Style.RESET_ALL}")
+        print("-" * 70)
+
+        for p in profiles:
+            s_name = p.service_name if p.service_name else ""
+            u_name = p.username if p.username else ""
+            url = p.url if p.url else ""
+            print(f"{p.id:<5} {s_name:<20} {u_name:<25} {url}")
+
+        print("-" * 70)
+
+        # Direkt anbieten zu entschlüsseln
+        choice = input("\nID zum Entschlüsseln (oder Enter für zurück): ").strip()
+        if choice and choice.isdigit():
+            reveal_password(int(choice))
+
+    except Exception as e:
+        print(Fore.RED + f"Such-Fehler: {e}" + Style.RESET_ALL)
+
+
 def interactive_loop():
     print_banner()
 
@@ -386,6 +425,12 @@ def interactive_loop():
                     handle_delete()
                 else:
                     print(Fore.RED + "Zugriff verweigert. Bitte einloggen." + Style.RESET_ALL)
+
+            elif command == "search":
+                if session.is_active():
+                    handle_search()
+                else:
+                    print(Fore.RED + "Zugriff verweigert." + Style.RESET_ALL)
 
             else:
                 print(f"Unbekannter Befehl. Tippe 'help' für eine Übersicht.")

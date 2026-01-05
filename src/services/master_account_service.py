@@ -21,6 +21,7 @@ class MasterAccountService:
         if self.repo.account_exists():
             raise ValueError("Es existiert bereits ein Master-Account. Bitte einloggen.")
 
+
         # Validierung
         valid, msg = MasterAccount.validate_password(password)
         if not valid:

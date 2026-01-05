@@ -113,3 +113,48 @@ class PasswordProfileRepository:
                 notes=row["notes"],
                 created_at=row["created_at"]
             )
+
+    def search_profiles(self, user_id: int, query: str) -> list[PasswordProfile]:
+        """Sucht nach Profilen (Service oder Username)."""
+        search_term = f"%{query}%"
+
+        #
+        with self.db.connect() as conn:
+            conn.row_factory = sqlite3.Row
+            cursor = conn.cursor()
+
+
+            query_sql = """
+                SELECT * FROM password_profiles 
+                WHERE user_id = ? AND (service_name LIKE ? OR username LIKE ?)
+            """
+            cursor.execute(query_sql, (user_id, search_term, search_term))
+
+            rows = cursor.fetchall()
+            profiles = []
+
+            for row in rows:
+                # direkte Entschlüsselung
+                # Fehler abfangen
+                try:
+                    decrypted_password = self.crypto.decrypt_data(
+                        key=self.master_key,
+                        nonce=row["nonce"],
+                        ciphertext=row["password_blob"]
+                    )
+                except Exception:
+                    decrypted_password = "[Entschlüsselungsfehler]"
+
+                p = PasswordProfile(
+                    id=row["id"],
+                    user_id=row["user_id"],
+                    service_name=row["service_name"],
+                    url=row["url"],
+                    username=row["username"],
+                    password=decrypted_password,
+                    notes=row["notes"],
+                    created_at=row["created_at"]
+                )
+                profiles.append(p)
+
+            return profiles
