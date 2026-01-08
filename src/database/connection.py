@@ -5,7 +5,8 @@ class DatabaseConnection:
     def __init__(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.project_root = os.path.dirname(os.path.dirname(base_dir))
-        self.db_path = os.path.join(self.project_root, "odinkey.db")
+        self.db_path = os.path.join(self.project_root, "data", "odinkey.db")
+        print(f"Используется база данных: {self.db_path}")
 
     def connect(self):
         return sqlite3.connect(self.db_path)

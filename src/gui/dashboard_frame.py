@@ -30,13 +30,13 @@ class DashboardFrame(ctk.CTkFrame):
         # ADD Button
         self.add_btn = ctk.CTkButton(
             self,
-            text="ADD NEW PASSWORD",
+            text="ADD NEW PROFILE",
             command=self.open_add_modal,
             fg_color="#b8860b",
             hover_color="#e0c97f",
             text_color="#232323",
             font=("Norse", 20, "bold"),
-            width=340,
+                width=500,  # Increased width for better fit
             height=40,
             corner_radius=20
         )
@@ -57,15 +57,15 @@ class DashboardFrame(ctk.CTkFrame):
     def _open_profile_modal(self, mode="add", profile_id=None):
         modal = ctk.CTkToplevel(self)
         modal.title("Add Profile" if mode == "add" else "Edit Profile")
-        modal.geometry("370x440")
+        modal.geometry("520x500")
         modal.resizable(False, False)
         modal.grab_set()
         modal.configure(bg="#232323")
 
         # Zentrieren
         modal.update_idletasks()
-        x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (370 // 2)
-        y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (440 // 2)
+        x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (520 // 2)
+        y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (500 // 2)
         modal.geometry(f"+{x}+{y}")
 
         frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
@@ -80,13 +80,39 @@ class DashboardFrame(ctk.CTkFrame):
                   ("password", "Password *")]
 
         for key, label_text in fields:
-            ctk.CTkLabel(frame, text=label_text, font=("Norse", 16), text_color="#e0c97f").pack(anchor="w", padx=18,
-                                                                                                pady=(2, 0))
-            entry = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2,
-                                 text_color="#e0c97f")
+            ctk.CTkLabel(frame, text=label_text, font=("Norse", 16), text_color="#e0c97f").pack(anchor="w", padx=18, pady=(2, 0))
+            entry = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
             if key == "password":
                 entry.configure(show="*")
-            entry.pack(pady=2)
+                entry.pack(pady=2)
+                # Add 'Generate Password' button next to password entry
+                def generate_password():
+                    """
+                    Generates a random password and inserts it into the password entry field.
+                    In future, this should call the password generator service with selected options.
+                    """
+                    import random, string
+                    # Example: generate a 12-character password using letters and digits
+                    generated = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+                    # Clear the password entry field
+                    entry.delete(0, 'end')
+                    # Insert the generated password
+                    entry.insert(0, generated)
+
+                gen_btn = ctk.CTkButton(
+                    frame,
+                    text="GENERATE PASSWORD",
+                    command=generate_password,
+                    fg_color="#e0c97f",
+                    hover_color="#b8860b",
+                    text_color="#232323",
+                    font=("Norse", 20, "bold"),  # Restored Norse font, bold and larger
+                    width=220,
+                    corner_radius=16
+                )
+                gen_btn.pack(pady=(0, 7))
+            else:
+                entry.pack(pady=2)
             entries[key] = entry
 
         existing_notes = None
