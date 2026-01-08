@@ -29,6 +29,31 @@ class DashboardState(StateWindow):
         username_entry.pack(pady=5)
         password_entry = ctk.CTkEntry(form, placeholder_text="Password", show="*", width=220)
         password_entry.pack(pady=5)
+
+        def generate_password():
+            # Generates a random password and inserts it into the password entry field.
+            # In future, this should call the password generator service with selected options.
+            import random, string
+            # Example: generate a 12-character password using letters and digits
+            generated = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+            # Clear the password entry field
+            password_entry.delete(0, 'end')
+            # Insert the generated password
+            password_entry.insert(0, generated)
+
+        # Button to generate a random password and fill the password entry field
+        gen_btn = ctk.CTkButton(
+            form,
+            text="Generate Password",
+            command=generate_password,
+            fg_color="#e0c97f",
+            hover_color="#b8860b",
+            text_color="#232323",
+            font=("Norse", 14),
+            width=180,
+            corner_radius=14
+        )
+        gen_btn.pack(pady=(0, 5))
         notes_entry = ctk.CTkEntry(form, placeholder_text="Notes (optional)", width=220)
         notes_entry.pack(pady=5)
 

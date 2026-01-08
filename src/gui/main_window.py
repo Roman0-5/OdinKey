@@ -55,7 +55,7 @@ class StartWindow:
         ctk.set_default_color_theme("dark-blue")
         self.master = master
         self.master.title("OdinKey 🗝️ | Viking Password Manager")
-        self.master.geometry("400x500")
+        self.master.geometry("700x600")  # Increased dashboard window width and height
         self.master.configure(bg="#232323")
 
         assets_dir = os.path.join(os.path.dirname(__file__), 'assets')

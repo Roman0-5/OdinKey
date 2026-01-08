@@ -1,8 +1,12 @@
 import sqlite3
 import os
 
-#importieren der Funktion aus dem models-Modul
-from src.database.models import create_schema
+class DatabaseConnection:
+    def __init__(self):
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        self.project_root = os.path.dirname(os.path.dirname(base_dir))
+        self.db_path = os.path.join(self.project_root, "data", "odinkey.db")
+        print(f"We use db: {self.db_path}")
 
 class DatabaseConnection:
     def __init__(self, db_file: str = "data/odinkey.db"):

@@ -25,13 +25,13 @@ class DashboardFrame(ctk.CTkFrame):
         # Centered ADD button above the profiles list
         self.add_btn = ctk.CTkButton(
             self,
-            text="ADD",
+            text="ADD NEW PROFILE",
             command=self.open_add_modal,
             fg_color="#b8860b",
             hover_color="#e0c97f",
             text_color="#232323",
             font=("Norse", 20, "bold"),
-            width=340,
+                width=500,  # Increased width for better fit
             height=40,
             corner_radius=20
         )
@@ -49,41 +49,83 @@ class DashboardFrame(ctk.CTkFrame):
 
     def _open_profile_modal(self, mode="add", profile_row=None):
         modal = ctk.CTkToplevel(self)
-        modal.title("Add Profile" if mode=="add" else "Edit Profile")
-        modal.geometry("370x440")
+        modal.title("Add Profile" if mode == "add" else "Edit Profile")
+        modal.geometry("520x500")
         modal.resizable(False, False)
         modal.grab_set()
         modal.configure(bg="#232323")
-        # Main frame for modal content with border and rounded corners
+
+        # Zentrieren
+        modal.update_idletasks()
+        x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (520 // 2)
+        y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (500 // 2)
+        modal.geometry(f"+{x}+{y}")
+
         frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
         frame.pack(fill="both", expand=True, padx=10, pady=10)
         ctk.CTkLabel(frame, text=("Add New Profile" if mode=="add" else "Edit Profile"), font=("Norse", 22, "bold"), text_color="#e0c97f", fg_color="transparent").pack(pady=(18, 10))
         entries = {}
-        # Service Name (required)
-        label_service = ctk.CTkLabel(frame, text="Service Name", font=("Norse", 16), text_color="#e0c97f")
-        label_service.pack(anchor="w", padx=18, pady=(2,0))
-        entries['service'] = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        entries['service'].pack(pady=2)
-        # URL (optional)
-        label_url = ctk.CTkLabel(frame, text="URL (optional)", font=("Norse", 16), text_color="#e0c97f")
-        label_url.pack(anchor="w", padx=18, pady=(2,0))
-        entries['url'] = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        entries['url'].pack(pady=2)
-        # Username (required)
-        label_username = ctk.CTkLabel(frame, text="Username", font=("Norse", 16), text_color="#e0c97f")
-        label_username.pack(anchor="w", padx=18, pady=(2,0))
-        entries['username'] = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        entries['username'].pack(pady=2)
-        # Password (required)
-        label_password = ctk.CTkLabel(frame, text="Password", font=("Norse", 16), text_color="#e0c97f")
-        label_password.pack(anchor="w", padx=18, pady=(2,0))
-        entries['password'] = ctk.CTkEntry(frame, show="*", width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
-        entries['password'].pack(pady=2)
-        if mode == "edit" and profile_row:
-            entries['service'].insert(0, profile_row['service_name'])
-            entries['url'].insert(0, profile_row['url'])
-            entries['username'].insert(0, profile_row['username'])
-            entries['password'].insert(0, profile_row['password'])
+
+        fields = [("service", "Service Name *"), ("url", "URL (optional)"), ("username", "Username *"),
+                  ("password", "Password *")]
+
+        for key, label_text in fields:
+            ctk.CTkLabel(frame, text=label_text, font=("Norse", 16), text_color="#e0c97f").pack(anchor="w", padx=18, pady=(2, 0))
+            entry = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
+            if key == "password":
+                entry.configure(show="*")
+                entry.pack(pady=2)
+                # Add 'Generate Password' button next to password entry
+                def generate_password():
+                    """
+                    Generates a random password and inserts it into the password entry field.
+                    In future, this should call the password generator service with selected options.
+                    """
+                    import random, string
+                    # Example: generate a 12-character password using letters and digits
+                    generated = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
+                    # Clear the password entry field
+                    entry.delete(0, 'end')
+                    # Insert the generated password
+                    entry.insert(0, generated)
+
+                gen_btn = ctk.CTkButton(
+                    frame,
+                    text="GENERATE PASSWORD",
+                    command=generate_password,
+                    fg_color="#e0c97f",
+                    hover_color="#b8860b",
+                    text_color="#232323",
+                    font=("Norse", 20, "bold"),  # Restored Norse font, bold and larger
+                    width=220,
+                    corner_radius=16
+                )
+                gen_btn.pack(pady=(0, 7))
+            else:
+                entry.pack(pady=2)
+            entries[key] = entry
+
+        existing_notes = None
+
+
+        if mode == "edit" and profile_id:
+            try:
+                # Hier nutzen wir noch direkt das Repo für Read, das ist okay
+                db_conn = DatabaseConnection()
+                repo = PasswordProfileRepository(db_conn, self.session.get_master_key())
+                full_profile = repo.get_profile_by_id(profile_id)
+
+                if full_profile:
+                    entries['service'].insert(0, full_profile.service_name)
+                    entries['url'].insert(0, full_profile.url or "")
+                    entries['username'].insert(0, full_profile.username)
+                    entries['password'].insert(0, full_profile.password)
+                    existing_notes = full_profile.notes
+            except Exception as e:
+                self.show_error_modal(f"Load Error: {e}")
+                modal.destroy()
+                return
+
         def save():
             try:
                 session = self.session
