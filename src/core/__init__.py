@@ -5,3 +5,4 @@ master_account: Masteraccount Verwaltung
 password_profile: Passwortprofil hinzufügen/verwalten
 session: "Session Management" -> Auto-Logout
 """
+from .session import session, SessionInactiveError

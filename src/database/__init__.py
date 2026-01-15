@@ -5,3 +5,4 @@ connection: "Connection" Management, SQLITE läuft embedded und erstellt währen
 models: das Schema der Datenbank definieren (die CREATE TABLE statements usw.)
 repository: CRUD Operationen definieren
 """
+from .connection import db

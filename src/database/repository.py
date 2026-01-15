@@ -1,4 +1,4 @@
-from src.database.connection import DatabaseConnection
+from src.database.connection import db as DatabaseConnection
 from src.core.master_account import MasterAccount
 
 

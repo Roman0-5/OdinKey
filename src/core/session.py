@@ -4,7 +4,7 @@ Session management for OdinKey))
 - SessionInactiveError: thrown when session is inactive and access is attempted
 - Session: manages a single user's session lifecycle with start, touch, end, and access methods
 """
-
+import threading
 from typing import Callable, Optional
 import time
 from src.core.master_account import MasterAccount
@@ -15,7 +15,7 @@ class SessionInactiveError(Exception):
     pass
 
 
-class Session:
+class _Session:
     """
     Manage a user session.
 
@@ -37,7 +37,14 @@ class Session:
 
         # Sensitive master key bytes; available only while session is active
         self._master_key: Optional[bytes] = None
+        # Callback for auto logout
+        self._on_expire_callback = None
+        # Threads to check for inactivitiy
+        self._monitor_thread = None
+        self._stop_monitoring = threading.Event()
 
+    def set_expire_callback(self, callback): #callback function
+        self._on_expire_callback = callback
     def start(self, account: MasterAccount, master_key: bytes) -> None:
         """
         Start or restart a session for the given account and master_key.
@@ -48,6 +55,22 @@ class Session:
         self._master_key = master_key
         self._expiry = self._time() + self.timeout_seconds
 
+        self._stop_monitoring.clear()
+        self._monitor_thread = threading.Thread(target=self._monitor_expiry, daemon=True)
+    def _monitor_expiry(self):
+        while not self._stop_monitoring.is_set():
+            if self._expiry and self._time() >= self._expiry:
+
+                if self._on_expire_callback:
+                    self._on_expire_callback()
+                self._cleanup()
+                break
+            time.sleep(1)
+    
+    def _cleanup(self):
+        self._expiry = None
+        self._master_key = None
+        self.account = None
     def is_active(self) -> bool:
         """
         Return True if the session is active (current time < expiry).
@@ -69,10 +92,10 @@ class Session:
         """
         Immediately deactivate the session and clear stored sensitive data.
         """
-        self._expiry = None
-        self._master_key = None
-        self.account = None
-
+        self._stop_monitoring.set()
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=1)
+        self._cleanup()
     def get_master_key(self) -> bytes:
         """
         Return the master key if session is active; otherwise raise SessionInactiveError.
@@ -87,3 +110,5 @@ class Session:
 
         assert self._master_key is not None
         return self._master_key
+#session = _Session() #default Wird instanziert damit jeder genau diese Session importieren kann (Singleton ähnlich)
+session = _Session(timeout_seconds=3) #testing purposes

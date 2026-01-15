@@ -2,7 +2,7 @@ import sqlite3
 from typing import Optional
 from src.core.password_profile import PasswordProfile
 from src.crypto.encryption import Encryption
-from src.database.connection import DatabaseConnection
+from src.database.connection import db as DatabaseConnection
 
 
 class PasswordProfileRepository:

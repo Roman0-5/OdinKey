@@ -1,7 +1,7 @@
 import sqlite3
 import os
 
-class DatabaseConnection:
+class _DatabaseConnection:
     def __init__(self):
         base_dir = os.path.dirname(os.path.abspath(__file__))
         self.project_root = os.path.dirname(os.path.dirname(base_dir))
@@ -41,8 +41,9 @@ class DatabaseConnection:
             conn.commit()
 
 
+db = _DatabaseConnection()
 if __name__ == "__main__":
     print("Versuche Datenbank zu erstellen...")
-    db = DatabaseConnection()
+    db = _DatabaseConnection()
     db.create_tables()
     print(f"Datenbank liegt unter: {db.db_path}") # Hier stand vorher .db_file (Fehler)
