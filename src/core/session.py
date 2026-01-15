@@ -111,4 +111,4 @@ class _Session:
         assert self._master_key is not None
         return self._master_key
 #session = _Session() #default Wird instanziert damit jeder genau diese Session importieren kann (Singleton ähnlich)
-session = _Session(timeout_seconds=3) #testing purposes
+session = _Session(timeout_seconds=600) #testing purposes
