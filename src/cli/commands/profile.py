@@ -72,7 +72,7 @@ def add():
         print(Fore.RED + f"Fehler beim Speichern: {e}" + Style.RESET_ALL)
 
 
-def list(interactive=True):
+def list_passwords(interactive=True):
     """Listet alle Passwörter auf. Wenn interactive=True, kann man entschlüsseln."""
     if not session.is_active():
         return
@@ -197,7 +197,7 @@ def delete():
         print(Fore.RED + f"Fehler: {e}" + Style.RESET_ALL)
 
 
-def handle_search():
+def search():
     """Sucht nach Einträgen über das Repository."""
     if not session.is_active():
         return
@@ -219,11 +219,7 @@ def handle_search():
         print("-" * 70)
 
         for p in profiles:
-            s_name = p.service_name if p.service_name else ""
-            u_name = p.username if p.username else ""
-            url = p.url if p.url else ""
-            print(f"{p.id:<5} {s_name:<20} {u_name:<25} {url}")
-
+            print(f"{p.id:<5} {p.service_name or '':<20} {p.username or '':<25} {p.url or ''}")
         print("-" * 70)
 
         # Direkt anbieten zu entschlüsseln
