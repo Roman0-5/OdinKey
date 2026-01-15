@@ -3,6 +3,8 @@ import sys
 import getpass
 import sqlite3
 
+from src.cli.commands.generator import generate
+
 # Falls colorama fehlt: pip install colorama
 try:
     from colorama import init, Fore, Style
@@ -146,21 +148,16 @@ def handle_generate():
     use_lower = ask_bool("Kleinbuchstaben verwenden?", default=True)
     use_digits = ask_bool("Ziffern verwenden?", default=True)
     use_special = ask_bool("Sonderzeichen verwenden?", default=True)
-
-    gen_service = PasswordGeneratorService()
-    result = gen_service.generate_password(
+    use_copy = ask_bool("Kopieren?", default=False)
+    generate(
         length=length,
-        use_uppercase=use_upper,
-        use_lowercase=use_lower,
-        use_digits=use_digits,
-        use_special=use_special
+        uppercase=use_upper,
+        lowercase=use_lower,
+        digits=use_digits,
+        special=use_special,
+        copy=use_copy
     )
 
-    if result['success']:
-        print(f"Generiert: {Fore.CYAN}{result['password']}{Style.RESET_ALL}")
-    else:
-        # Fehlermeldung (z.B. wenn gar keine Option gewählt wurde)
-        print(Fore.RED + f"Fehler: {result['error']}" + Style.RESET_ALL)
 
 
 def handle_add():
