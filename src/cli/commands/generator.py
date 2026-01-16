@@ -105,7 +105,7 @@ def generate_random(length, uppercase, lowercase, digits, special, copy):
                 print(Fore.YELLOW + f"Password kopiert für 3 Minuten!" + Style.RESET_ALL)
                 print()
 
-                clear_clipboard_after_timeout(5)
+                clear_clipboard_after_timeout(180)
             except Exception as e:
                 print(Fore.RED + f"Fehler: {e}" + Style.RESET_ALL)
 

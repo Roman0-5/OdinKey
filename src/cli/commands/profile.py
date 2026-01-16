@@ -28,17 +28,17 @@ def add():
         return
 
     print("\n--- Neues Passwort anlegen ---")
-    service_name = input(Fore.LIGHTRED_EX + "! " + Style.RESET_ALL + "Service (z.B. Google): ")
+    service_name = input(Fore.LIGHTRED_EX + "! " + Style.RESET_ALL + "Service (z.B. HCW-Portal): ")
     if not service_name:
         print(Fore.RED + "Abbruch: Service Name ist Pflicht." + Style.RESET_ALL)
         return
 
-    username = input(Fore.LIGHTRED_EX + "! " + Style.RESET_ALL + "Username/Email: ")
+    username = input(Fore.LIGHTRED_EX + "! " + Style.RESET_ALL + "Username/Email (z.B. Student-1): ")
     if not username:
         print(Fore.RED + "Abbruch: Username ist Pflicht." + Style.RESET_ALL)
         return
 
-    url = input("URL (optional): ")
+    url = input("  URL (z.B. https://portal.hcw.ac.at) [optional]: ")
 
     print(Fore.LIGHTRED_EX + "! " + Style.RESET_ALL + "Passwort: ", end="", flush=True)
     password = getpass.getpass("")
@@ -126,9 +126,9 @@ def reveal_password(profile_id):
             print(f"Eintrag gefunden: {Fore.CYAN}{profile.service_name} ({profile.username}){Style.RESET_ALL}")
 
             # <--- HIER: Aufruf der zentralen Utility-Funktion
-            if copy_with_timeout(profile.password, timeout=60):
+            if copy_with_timeout(profile.password, timeout=180):
                 print(f"{Fore.GREEN} Passwort wurde in die Zwischenablage kopiert!{Style.RESET_ALL}")
-                print(f"{Fore.YELLOW}(Sicherheits-Feature: Zwischenablage leert sich in 60 Sek.){Style.RESET_ALL}")
+                print(f"{Fore.YELLOW}(Sicherheits-Feature: Zwischenablage leert sich in 3 Minuten){Style.RESET_ALL}")
 
             if ask_bool("Soll das Passwort zusätzlich angezeigt werden?", default=False):
                 print(f"Passwort: {Fore.RED}{profile.password}{Style.RESET_ALL}")
@@ -229,3 +229,69 @@ def search():
 
     except Exception as e:
         print(Fore.RED + f"Such-Fehler: {e}" + Style.RESET_ALL)
+
+
+def edit():
+    """Bearbeitet ein bestehendes Profil."""
+    print("\n--- Profil Bearbeiten ---")
+
+    # 1. Suchen / ID abfragen
+    search_term = input("Welches Profil suchen? (Name/Service): ").strip()
+    if not search_term:
+        return
+
+    # Repository & Service holen
+    # KORREKTUR: db_conn statt db nutzen!
+    # KORREKTUR: Variable umbenannt zu profile_repo (Konsistenz)
+    profile_repo = PasswordProfileRepository(db_conn, session.get_master_key())
+
+    # Wir nutzen die existierende Suchfunktion des Repositories
+    profiles = profile_repo.search_profiles(session.account.id, search_term)
+
+    if not profiles:
+        print("Kein Profil gefunden.")
+        return
+
+    # Ergebnisse anzeigen
+    print(f"\nGefundene Profile:")
+    for p in profiles:
+        print(f"[{p.id}] {p.service_name} | {p.username}")
+
+    # 2. ID auswählen
+    try:
+        profile_id = int(input("\nBitte ID eingeben zum Bearbeiten: "))
+    except ValueError:
+        print("Ungültige Eingabe.")
+        return
+
+    # Das korrekte Profil aus der Liste picken
+    target_profile = next((p for p in profiles if p.id == profile_id), None)
+
+    if not target_profile:
+        print("ID nicht in den Suchergebnissen.")
+        return
+
+    print(f"\nBearbeite: {target_profile.service_name}")
+    print("(Lass das Feld leer, um den alten Wert zu behalten)")
+
+    # 3. Neue Werte abfragen (mit Logik: Leer = Behalten)
+    new_service = input(f"Service ({target_profile.service_name}): ").strip()
+    if new_service: target_profile.service_name = new_service
+
+    new_user = input(f"Username ({target_profile.username}): ").strip()
+    if new_user: target_profile.username = new_user
+
+    new_pw = input(f"Passwort (***): ").strip()
+    if new_pw: target_profile.password = new_pw
+
+    new_url = input(f"URL ({target_profile.url}): ").strip()
+    if new_url: target_profile.url = new_url
+
+    # 4. Speichern
+    try:
+        # Hier nutzen wir das lokale profile_repo
+        profile_service = PasswordProfileService(profile_repo, None)
+        profile_service.update_profile(target_profile)
+        print(Fore.GREEN + "\n Profil erfolgreich aktualisiert!" + Style.RESET_ALL)
+    except Exception as e:
+        print(Fore.RED + f"\n Fehler beim Speichern: {e}" + Style.RESET_ALL)

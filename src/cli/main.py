@@ -52,6 +52,7 @@ def print_menu_logged_in(username):
     print(f" {Fore.CYAN}list{Style.RESET_ALL}     - Alle Passwörter anzeigen")
     print(f" {Fore.CYAN}add{Style.RESET_ALL}      - Neues Passwort speichern")
     print(f" {Fore.CYAN}delete{Style.RESET_ALL}   - Eintrag löschen")
+    print(f" {Fore.CYAN}edit{Style.RESET_ALL}     - Eintrag bearbeiten")
     print(f" {Fore.CYAN}generate{Style.RESET_ALL} - Passwort generieren")
     print(f" {Fore.CYAN}search{Style.RESET_ALL}   - Nach Einträgen suchen")
     print(f" {Fore.CYAN}logout{Style.RESET_ALL}   - Tresor schließen")
@@ -102,6 +103,7 @@ COMMANDS = {
     'delete': profile.delete,
     'list': profile.list_passwords,
     'search': profile.search,
+    'edit': profile.edit,
     # Close Program
     'exit': cmd_exit,
     'quit': cmd_exit,

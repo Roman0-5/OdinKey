@@ -76,12 +76,24 @@ class DashboardFrame(ctk.CTkFrame):
 
         entries = {}
 
-        fields = [("service", "Service Name *"), ("url", "URL (optional)"), ("username", "Username *"),
-                  ("password", "Password *")]
+        fields = [
+            ("service", "Service Name *", "z.B. HCW-Portal"),
+            ("url", "URL (optional)", "z.B. https://portal.hcw.ac.at"),
+            ("username", "Username *", "z.B. Student-1"),
+            ("password", "Password *", "")  # Passwort lassen wir leer oder "..."
+        ]
 
-        for key, label_text in fields:
+        for key, label_text, placeholder in fields:
             ctk.CTkLabel(frame, text=label_text, font=("Norse", 16), text_color="#e0c97f").pack(anchor="w", padx=18, pady=(2, 0))
-            entry = ctk.CTkEntry(frame, width=240, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f")
+            entry = ctk.CTkEntry(
+                frame,
+                width=240,
+                fg_color="#2d2d2d",
+                border_color="#e0c97f",
+                border_width=2,
+                text_color="#e0c97f",
+                placeholder_text=placeholder
+            )
             if key == "password":
                 entry.configure(show="*")
                 entry.pack(pady=2)
@@ -183,8 +195,8 @@ class DashboardFrame(ctk.CTkFrame):
             db_conn = DatabaseConnection()
             repo = PasswordProfileRepository(db_conn, self.session.get_master_key())
             profile = repo.get_profile_by_id(profile_id)
-            if profile and copy_with_timeout(profile.password, timeout=60):
-                self.show_success_modal("Password copied! (Clears in 60s)")
+            if profile and copy_with_timeout(profile.password, timeout=180):
+                self.show_success_modal("Password copied! (Clears in 3 Minutes)")
             else:
                 self.show_error_modal("Could not copy password.")
         except Exception as e:
