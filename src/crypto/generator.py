@@ -116,7 +116,19 @@ class PasswordGenerator:
 
         return ''.join(result)
 
-
+    #Help_Methods for further algorithms
+    def get_random_digit(self) -> str:
+        return self.random.choice(self.DIGITS)
+    def get_random_letter(self, uppercase: bool = None) -> str:
+        if uppercase is None:
+            return self.random.choice(string.ascii_letters)
+        elif uppercase:
+            return self.random.choice(self.UPPERCASE)
+        else:
+            return self.random.choice(self.LOWERCASE)
+    def get_random_special(self) -> str:
+        return self.random.choice(self.SPECIAL)
+generator = PasswordGenerator()
 # testing methods
 if __name__ == "__main__":
     generator = PasswordGenerator()
