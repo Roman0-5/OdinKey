@@ -5,6 +5,7 @@ from src.core.password_profile import PasswordProfile
 from src.utils.clipboard import copy_with_timeout
 from src.database.connection import DatabaseConnection  # Nur noch für Daten-Abruf (Read) nötig
 from src.database.password_profile_repository import PasswordProfileRepository  # Für Read-Operationen
+from colorama import Fore, Style
 
 
 class DashboardFrame(ctk.CTkFrame):
@@ -12,7 +13,7 @@ class DashboardFrame(ctk.CTkFrame):
     def __init__(self, master, session, profile_service, show_success_modal, show_error_modal, *args, **kwargs):
         super().__init__(master, fg_color="#232323", corner_radius=20, *args, **kwargs)
         self.session = session
-        self.profile_service = profile_service  # <--- Service speichern
+        self.profile_service = profile_service
         self.show_success_modal = show_success_modal
         self.show_error_modal = show_error_modal
         self.profiles_frame = None
@@ -77,10 +78,10 @@ class DashboardFrame(ctk.CTkFrame):
         entries = {}
 
         fields = [
-            ("service", "Service Name *", "z.B. HCW-Portal"),
+            ("service", "Service Name" + Fore.LIGHTRED_EX + "!", "z.B. HCW-Portal"),
             ("url", "URL (optional)", "z.B. https://portal.hcw.ac.at"),
-            ("username", "Username *", "z.B. Student-1"),
-            ("password", "Password *", "")  # Passwort lassen wir leer oder "..."
+            ("username", "Username" + Fore.LIGHTRED_EX + "!", "z.B. Student-1"),
+            ("password", "Password" + Fore.LIGHTRED_EX + "!", "")  # Passwort lassen wir leer oder "..."
         ]
 
         for key, label_text, placeholder in fields:

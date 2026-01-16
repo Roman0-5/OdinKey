@@ -57,8 +57,8 @@ def login():
 
     except sqlite3.OperationalError:
             # Fehler kommt, wenn die Tabelle noch gar nicht existiert
-        click.echo("Datenbank ist noch leer. Bitte zuerst registrieren:")
-        click.echo("  python cli_main.py register")
+        click.echo("Noch kein Account vorhanden -  zuerst mit Befehl registrieren:")
+        click.echo("  Befehl: register")
         return False
 
     # Ask the user to enter username

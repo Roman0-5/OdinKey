@@ -241,8 +241,6 @@ def edit():
         return
 
     # Repository & Service holen
-    # KORREKTUR: db_conn statt db nutzen!
-    # KORREKTUR: Variable umbenannt zu profile_repo (Konsistenz)
     profile_repo = PasswordProfileRepository(db_conn, session.get_master_key())
 
     # Wir nutzen die existierende Suchfunktion des Repositories
@@ -281,8 +279,9 @@ def edit():
     new_user = input(f"Username ({target_profile.username}): ").strip()
     if new_user: target_profile.username = new_user
 
-    new_pw = input(f"Passwort (***): ").strip()
-    if new_pw: target_profile.password = new_pw
+    new_pw = getpass.getpass(f"Passwort (***): ").strip()
+    if new_pw:
+        target_profile.password = new_pw
 
     new_url = input(f"URL ({target_profile.url}): ").strip()
     if new_url: target_profile.url = new_url
@@ -295,3 +294,28 @@ def edit():
         print(Fore.GREEN + "\n Profil erfolgreich aktualisiert!" + Style.RESET_ALL)
     except Exception as e:
         print(Fore.RED + f"\n Fehler beim Speichern: {e}" + Style.RESET_ALL)
+
+
+def manage_menu():
+    if not session.is_active():
+        print(Fore.RED + "Zugriff verweigert." + Style.RESET_ALL)
+        return
+
+    while True:
+        print(f"\n{Fore.CYAN}--- Passwortprofil Verwalten ---{Style.RESET_ALL}")
+        print(" 1. Bearbeiten")
+        print(" 2. Löschen")
+        print(" 0. Zurück zum Hauptmenü")
+
+        choice = input(f"{Fore.GREEN}Auswahl > {Style.RESET_ALL}").strip()
+
+        if choice == '1':
+            edit()  # Ruft die existierende edit-Funktion auf
+            break  # Nach Abarbeitung zurück oder break entfernen um im Menü zu bleiben
+        elif choice == '2':
+            delete()  # Ruft die existierende delete-Funktion auf
+            break
+        elif choice == '0':
+            break
+        else:
+            print(Fore.RED + "Ungültige Auswahl." + Style.RESET_ALL)
