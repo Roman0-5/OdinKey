@@ -1,6 +1,9 @@
 import click
 import traceback
 from colorama import init, Fore, Style
+
+from src.cli.commands.generator import generate_random
+
 init()
 
 
@@ -13,7 +16,7 @@ from src.services.master_account_service import MasterAccountService
 from src.core.session import session
 # commands
 from src.cli.commands import auth
-from src.cli.commands.generator import generate
+from src.cli.commands import generator
 from src.cli.commands import profile
 # Setup
 repo = MasterAccountRepository(db_conn)
@@ -85,29 +88,6 @@ def cmd_login():
         if auth.login():
             print_menu_logged_in(session.account.username)
 
-def cmd_generate():
-    """Generiert ein Passwort mit konfigurierbaren Optionen."""
-    print("\n--- Passwort Generator ---")
-    try:
-        length_str = input("Länge (Enter für 12): ")
-        length = int(length_str) if length_str else 12
-    except ValueError:
-        length = 12
-
-    # Optionen abfragen
-    use_upper = ask_bool("Großbuchstaben verwenden?", default=True)
-    use_lower = ask_bool("Kleinbuchstaben verwenden?", default=True)
-    use_digits = ask_bool("Ziffern verwenden?", default=True)
-    use_special = ask_bool("Sonderzeichen verwenden?", default=True)
-    use_copy = ask_bool("Kopieren?", default=False)
-    generate(
-        length=length,
-        uppercase=use_upper,
-        lowercase=use_lower,
-        digits=use_digits,
-        special=use_special,
-        copy=use_copy
-    )
 # command registry
 COMMANDS = {
     'help': cmd_help,
@@ -115,7 +95,8 @@ COMMANDS = {
     'login': cmd_login,
     'register': auth.register,
     # generator
-    'generate': cmd_generate,
+    'generate': generator.generate,
+    'gen': generator.generate,
     # profile
     'add': profile.add,
     'delete': profile.delete,

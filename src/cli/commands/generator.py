@@ -24,7 +24,60 @@ def clear_clipboard_after_timeout(seconds):
             pass
     thread = threading.Thread(target=clear, daemon=True)
     thread.start()
+# helper methods
+def ask_bool(prompt, default=True):
+    """Hilfsfunktion für Ja/Nein Abfragen."""
+    suffix = " [Y/n]" if default else " [y/N]"
+    val = input(prompt + suffix + ": ").strip().lower()
+    if not val:
+        return default
+    return val in ["y", "yes", "j", "ja"]
 
+
+def ask_int(prompt: str, default: int, min_val: int = None, max_val: int = None) -> int:
+    """Hilfsfunktion für Integer-Eingaben."""
+    while True:
+        response = input(f"{prompt} (Enter für {default}): ").strip()
+
+        if not response:
+            return default
+
+        try:
+            value = int(response)
+
+            if min_val is not None and value < min_val:
+                print(Fore.RED + f"✗ Minimum ist {min_val}" + Style.RESET_ALL)
+                continue
+
+            if max_val is not None and value > max_val:
+                print(Fore.RED + f"✗ Maximum ist {max_val}" + Style.RESET_ALL)
+                continue
+
+            return value
+
+        except ValueError:
+            print(Fore.RED + "✗ Bitte eine Zahl eingeben" + Style.RESET_ALL)
+
+
+def _display_result(result: dict):
+    """Display generation result."""
+    if result and result['success']:
+        password = result['password']
+        print("\n" + Fore.GREEN + "Passwort erflolgreich erstellt!" + Style.RESET_ALL)
+        print("\n" + Fore.YELLOW + "Passwort:" + Style.RESET_ALL)
+        print("  " + Fore.CYAN + password + Style.RESET_ALL)
+        print(f"  Länge: {result['length']} Zeichen")
+
+        if 'algorithm' in result:
+            print(f"  Algorithmus: {result['algorithm']}")
+
+        print()
+
+    elif result:
+        print("\n" + Fore.RED + f"✗ Fehler: {result['error']}" + Style.RESET_ALL)
+def get_wordlist_size() -> int:
+    return len(service.wordlist)
+# logic
 def generate_random(length, uppercase, lowercase, digits, special, copy):
     #ruft PasswordGenerator auf
     #mapping für unsere commands
@@ -129,6 +182,139 @@ def generate_wildcard(
         print(Fore.YELLOW + f"Password kopiert für 3 Minuten!" + Style.RESET_ALL)
         clear_clipboard_after_timeout(180)
     return result
+
+# TUI stuff
+def generate():
+    """Main generator menu - choose algorithm."""
+    print("\n" + Fore.CYAN + "Willkommen im Passwort Generator Menü!" + Style.RESET_ALL)
+
+    print("\n" + Fore.YELLOW + "Bitte wähle einen Algorithmus:" + Style.RESET_ALL)
+    print(f"  {Fore.GREEN}1{Style.RESET_ALL} - Random       (Zufällige Zeichen)")
+    print(f"  {Fore.GREEN}2{Style.RESET_ALL} - Pronounceable (Aussprechbar)")
+    print(f"  {Fore.GREEN}3{Style.RESET_ALL} - Passphrase    (Mehrere Wörter) *")
+    print(f"  {Fore.GREEN}4{Style.RESET_ALL} - Pattern       (Strukturiert)")
+    print(f"  {Fore.GREEN}5{Style.RESET_ALL} - Wildcard      (Eigenes Template)")
+
+    choice = input("\n" + Fore.CYAN + "Algorithmus (1-5, Enter für 1): " + Style.RESET_ALL).strip()
+
+    if choice == '1' or not choice:
+        gen_random_menu()
+    elif choice == '2':
+        gen_pronounceable_menu()
+    elif choice == '3':
+        gen_passphrase_menu()
+    elif choice == '4':
+        gen_pattern_menu()
+    elif choice == '5':
+        gen_wildcard_menu()
+    else:
+        print(Fore.RED + "Ungültige Auswahl" + Style.RESET_ALL)
+
+
+def gen_random_menu():
+    """Interactive menu for random password."""
+    print("\n" + Fore.CYAN + "--- Random Password ---" + Style.RESET_ALL)
+
+    length = ask_int("Länge", default=16, min_val=8, max_val=64)
+    use_upper = ask_bool("Großbuchstaben?", default=True)
+    use_lower = ask_bool("Kleinbuchstaben?", default=True)
+    use_digits = ask_bool("Ziffern?", default=True)
+    use_special = ask_bool("Sonderzeichen?", default=False)
+    copy = ask_bool("In Zwischenablage kopieren?", default=False)
+
+    result = generate_random(
+        length=length,
+        uppercase=use_upper,
+        lowercase=use_lower,
+        digits=use_digits,
+        special=use_special,
+        copy=copy
+    )
+
+    _display_result(result)
+
+
+def gen_pronounceable_menu():
+    """Interactive menu for pronounceable password."""
+    print("\n" + Fore.CYAN + "--- Pronounceable Password ---" + Style.RESET_ALL)
+
+    length = ask_int("Länge", default=12, min_val=6, max_val=32)
+    use_digits = ask_bool("Ziffern anhängen?", default=True)
+    use_special = ask_bool("Sonderzeichen anhängen?", default=True)
+    copy = ask_bool("In Zwischenablage kopieren?", default=False)
+
+    result = generate_pronounceable(
+        length=length,
+        use_digits=use_digits,
+        use_special=use_special,
+        copy=copy
+    )
+
+    _display_result(result)
+
+
+def gen_passphrase_menu():
+    """Interactive menu for passphrase."""
+    print("\n" + Fore.CYAN + "--- Passphrase (XKCD-Style) ---" + Style.RESET_ALL)
+    print(Fore.YELLOW + f"Wordlist: {get_wordlist_size()} Wörter verfügbar" + Style.RESET_ALL)
+
+    num_words = ask_int("Anzahl Wörter", default=4, min_val=2, max_val=8)
+    copy = ask_bool("In Zwischenablage kopieren?", default=False)
+
+    result = generate_passphrase(
+        num_words=num_words,
+        use_digits=True,
+        use_special=True,
+        copy=copy
+    )
+
+    _display_result(result)
+
+
+def gen_pattern_menu():
+    """Interactive menu for pattern password."""
+    print("\n" + Fore.CYAN + "--- Pattern Password ---" + Style.RESET_ALL)
+
+    use_upper = ask_bool("Großbuchstaben?", default=True)
+    use_lower = ask_bool("Kleinbuchstaben?", default=True)
+    use_digits = ask_bool("Ziffern?", default=True)
+    use_special = ask_bool("Sonderzeichen?", default=True)
+    copy = ask_bool("In Zwischenablage kopieren?", default=False)
+
+    result = generate_pattern(
+        use_uppercase=use_upper,
+        use_lowercase=use_lower,
+        use_digits=use_digits,
+        use_special=use_special,
+        copy=copy
+    )
+
+    _display_result(result)
+
+
+def gen_wildcard_menu():
+    """Interactive menu for wildcard template."""
+    print("\n" + Fore.CYAN + "--- Wildcard Template ---" + Style.RESET_ALL)
+    print(f"\n{Fore.YELLOW}Wildcards:{Style.RESET_ALL}")
+    print(f"  {Fore.GREEN}#{Style.RESET_ALL} - Ziffer (0-9)")
+    print(f"  {Fore.GREEN}@{Style.RESET_ALL} - Buchstabe (a-z, A-Z)")
+    print(f"  {Fore.GREEN}?{Style.RESET_ALL} - Beliebiges Zeichen (Buchstabe + Ziffer)")
+    print(f"  {Fore.GREEN}!{Style.RESET_ALL} - Sonderzeichen")
+
+    print(f"\n{Fore.YELLOW}Beispiel:{Style.RESET_ALL}")
+    print(f"  {Fore.CYAN}OdinKey-####-@@@@{Style.RESET_ALL}  → OdinKey-8374-Kfwq")
+
+    template = input(f"\n{Fore.CYAN}Template: {Style.RESET_ALL}").strip()
+
+    if not template:
+        print(Fore.RED + "Template ist leer" + Style.RESET_ALL)
+        return
+
+    copy = ask_bool("In Zwischenablage kopieren?", default=False)
+
+    result = generate_wildcard(template=template, copy=copy)
+
+    _display_result(result)
 
 
 # testing stuff
