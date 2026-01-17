@@ -58,7 +58,7 @@ class DashboardFrame(ctk.CTkFrame):
     def _open_profile_modal(self, mode="add", profile_id=None):
         modal = ctk.CTkToplevel(self)
         modal.title("Add Profile" if mode == "add" else "Edit Profile")
-        modal.geometry("520x500")
+        modal.geometry("540x600")  # tightened layout removes scroll need
         modal.resizable(False, False)
         modal.grab_set()
         modal.configure(bg="#232323")
@@ -69,67 +69,85 @@ class DashboardFrame(ctk.CTkFrame):
         y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (500 // 2)
         modal.geometry(f"+{x}+{y}")
 
-        frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
-        frame.pack(fill="both", expand=True, padx=10, pady=10)
-
-        ctk.CTkLabel(frame, text=("Add New Profile" if mode == "add" else "Edit Profile"), font=("Norse", 22, "bold"),
-                     text_color="#e0c97f", fg_color="transparent").pack(pady=(18, 10))
-
+        container = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e0c97f")
+        container.pack(fill="both", expand=True, padx=18, pady=18)
+        frame = ctk.CTkFrame(container, fg_color="#232323")
+        frame.pack(fill="both", expand=True)
+        ctk.CTkLabel(frame, text=("Add New Profile" if mode=="add" else "Edit Profile"), font=("Norse", 28, "bold"), text_color="#e0c97f", fg_color="transparent").pack(pady=(4, 6))
+        form = ctk.CTkFrame(frame, fg_color="#232323")
+        form.pack(fill="both", expand=True, padx=8, pady=(0, 2))
         entries = {}
 
         fields = [
-            ("service", "Service Name" + Fore.LIGHTRED_EX + "!", "z.B. HCW-Portal"),
-            ("url", "URL (optional)", "z.B. https://portal.hcw.ac.at"),
-            ("username", "Username" + Fore.LIGHTRED_EX + "!", "z.B. Student-1"),
-            ("password", "Password" + Fore.LIGHTRED_EX + "!", "")  # Passwort lassen wir leer oder "..."
+            ("service", "Service Name *"),
+            ("url", "URL (optional)"),
+            ("username", "Username *"),
+            ("password", "Password *")
         ]
 
-        for key, label_text, placeholder in fields:
-            ctk.CTkLabel(frame, text=label_text, font=("Norse", 16), text_color="#e0c97f").pack(anchor="w", padx=18, pady=(2, 0))
-            entry = ctk.CTkEntry(
-                frame,
-                width=240,
-                fg_color="#2d2d2d",
-                border_color="#e0c97f",
-                border_width=2,
-                text_color="#e0c97f",
-                placeholder_text=placeholder
-            )
+        placeholders = {
+            "service": "e.g. Gmail",
+            "url": "https://service.com",
+            "username": "user@example.com",
+            "password": "manual / generator"
+        }
+
+        for key, label_text in fields:
+            row = ctk.CTkFrame(form, fg_color="#232323")
+            row.pack(fill="x", pady=6)
+            ctk.CTkLabel(row, text=label_text, font=("Norse", 15), text_color="#e0c97f").pack(side="left")
+            entry = ctk.CTkEntry(row, width=340, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f", placeholder_text=placeholders.get(key, ""))
             if key == "password":
                 entry.configure(show="*")
-                entry.pack(pady=2)
-                # Add 'Generate Password' button next to password entry
-                def generate_password():
-                    """
-                    Generates a random password and inserts it into the password entry field.
-                    In future, this should call the password generator service with selected options.
-                    """
-                    import random, string
-                    # Example: generate a 12-character password using letters and digits
-                    generated = ''.join(random.choices(string.ascii_letters + string.digits, k=12))
-                    # Clear the password entry field
-                    entry.delete(0, 'end')
-                    # Insert the generated password
-                    entry.insert(0, generated)
+                entry.pack(side="right", padx=(12, 0))
+                entries[key] = entry
+                # --- Password Generator Controls (random only) ---
+                generator_box = ctk.CTkFrame(frame, fg_color="#1f1f1f", corner_radius=18, border_width=1, border_color="#e0c97f")
+                generator_box.pack(fill="x", padx=8, pady=(4, 4))
+                ctk.CTkLabel(generator_box, text="Password Generator", font=("Norse", 18, "bold"), text_color="#e0c97f").pack(anchor="w", padx=14, pady=(8, 2))
 
-                gen_btn = ctk.CTkButton(
-                    frame,
-                    text="GENERATE PASSWORD",
-                    command=generate_password,
-                    fg_color="#e0c97f",
-                    hover_color="#b8860b",
-                    text_color="#232323",
-                    font=("Norse", 20, "bold"),  # Restored Norse font, bold and larger
-                    width=220,
-                    corner_radius=16
-                )
-                gen_btn.pack(pady=(0, 7))
-            else:
-                entry.pack(pady=2)
+                length_row = ctk.CTkFrame(generator_box, fg_color="#1f1f1f")
+                length_row.pack(fill="x", padx=12, pady=(0, 6))
+                ctk.CTkLabel(length_row, text="Length", font=("Norse", 14), text_color="#e0c97f").pack(side="left")
+                length_var = ctk.IntVar(value=12)
+                ctk.CTkEntry(length_row, textvariable=length_var, width=90, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f", placeholder_text="Default 12").pack(side="left", padx=(12, 0))
+
+                uppercase_var = ctk.BooleanVar(value=True)
+                lowercase_var = ctk.BooleanVar(value=True)
+                digits_var = ctk.BooleanVar(value=True)
+                special_var = ctk.BooleanVar(value=False)
+
+                checkbox_grid = ctk.CTkFrame(generator_box, fg_color="#1f1f1f")
+                checkbox_grid.pack(fill="x", padx=8, pady=(0, 10))
+                options = [("Uppercase", uppercase_var), ("Lowercase", lowercase_var), ("Digits", digits_var), ("Special Characters", special_var)]
+                for idx, (text, var) in enumerate(options):
+                    row, col = divmod(idx, 2)
+                    chk = ctk.CTkCheckBox(checkbox_grid, text=text, variable=var, font=("Norse", 13), text_color="#e0c97f", fg_color="#1f1f1f", border_color="#e0c97f")
+                    chk.grid(row=row, column=col, padx=10, pady=4, sticky="w")
+
+                def generate_password():
+                    from src.services.password_generator_service import PasswordGeneratorService
+                    service = PasswordGeneratorService()
+                    result = service.generate_password(
+                        length=length_var.get(),
+                        use_uppercase=uppercase_var.get(),
+                        use_lowercase=lowercase_var.get(),
+                        use_digits=digits_var.get(),
+                        use_special=special_var.get()
+                    )
+                    if result["success"]:
+                        entry.delete(0, "end")
+                        entry.insert(0, result["password"])
+                    else:
+                        self.show_error_modal(result["error"])
+
+                ctk.CTkButton(generator_box, text="Generate Password", command=generate_password, fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323", font=("Norse", 16, "bold"), width=220, height=38, corner_radius=18).pack(pady=(4, 8))
+                continue
+            entry.pack(side="right", padx=(12, 0))
             entries[key] = entry
 
         existing_notes = None
-
+        profile_id = profile_row['id'] if profile_row else None
 
         if mode == "edit" and profile_id:
             try:
@@ -180,16 +198,24 @@ class DashboardFrame(ctk.CTkFrame):
 
                 modal.destroy()
             except Exception as e:
-                self.show_error_modal(f"Save Error: {e}")
-
+                self.show_error_modal(f"Error: {e}")
+        btn_row = ctk.CTkFrame(frame, fg_color="transparent")
+        btn_row.pack(pady=(8, 0))
+        cancel_btn = ctk.CTkButton(btn_row, text="CANCEL", command=modal.destroy, fg_color="#1b1b1b", hover_color="#333333", text_color="#e0c97f", font=("Norse", 18, "bold"), width=200, height=44, corner_radius=18, border_width=1, border_color="#e0c97f")
+        cancel_btn.pack(side="left", padx=(0, 12))
         save_btn = ctk.CTkButton(
-            frame,
-            text=("SAVE" if mode == "add" else "UPDATE"),
+            btn_row,
+            text=("SAVE PROFILE" if mode=="add" else "UPDATE PROFILE"),
             command=save,
-            fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323",
-            font=("Norse", 22, "bold"), width=340, height=52, corner_radius=18
+            fg_color="#b8860b",
+            hover_color="#e0c97f",
+            text_color="#232323",
+            font=("Norse", 18, "bold"),
+            width=200,
+            height=44,
+            corner_radius=18
         )
-        save_btn.pack(pady=(18, 10))
+        save_btn.pack(side="left")
 
     def copy_password(self, profile_id):
         try:
