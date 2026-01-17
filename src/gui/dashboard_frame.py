@@ -18,6 +18,7 @@ class DashboardFrame(ctk.CTkFrame):
         self.show_error_modal = show_error_modal
         self.profiles_frame = None
         self.add_btn = None
+        self.search_var = ctk.StringVar(value="")
         self._build()
 
     def _build(self):
@@ -43,10 +44,43 @@ class DashboardFrame(ctk.CTkFrame):
         )
         self.add_btn.pack(pady=(10, 5), padx=30)
 
+        search_frame = ctk.CTkFrame(self, fg_color="transparent")
+        search_frame.pack(pady=(0, 10), padx=30, fill="x")
+        ctk.CTkLabel(search_frame, text="Search", font=("Norse", 18), text_color="#e0c97f").pack(side="left", padx=(0, 12))
+        search_entry = ctk.CTkEntry(
+            search_frame,
+            textvariable=self.search_var,
+            placeholder_text="Service, username, URL",
+            width=320,
+            fg_color="#2d2d2d",
+            border_color="#e0c97f",
+            border_width=2,
+            text_color="#e0c97f"
+        )
+        search_entry.pack(side="left", fill="x", expand=True)
+        ctk.CTkButton(
+            search_frame,
+            text="CLEAR",
+            width=90,
+            command=self._clear_search,
+            fg_color="#1b1b1b",
+            hover_color="#333333",
+            text_color="#e0c97f",
+            corner_radius=14,
+            border_width=1,
+            border_color="#e0c97f"
+        ).pack(side="left", padx=(12, 0))
+
         # Liste der Profile
-        self.profiles_frame = ctk.CTkScrollableFrame(self, fg_color="#232323", corner_radius=20, border_width=1,
-                                                     border_color="#e0c97f")
+        self.profiles_frame = ctk.CTkScrollableFrame(
+            self,
+            fg_color="#232323",
+            corner_radius=20,
+            border_width=1,
+            border_color="#e0c97f"
+        )
         self.profiles_frame.pack(pady=10, padx=20, fill="both", expand=True)
+        self.search_var.trace_add("write", self._on_search_change)
         self.refresh_profiles()
 
     def open_add_modal(self):
@@ -147,7 +181,6 @@ class DashboardFrame(ctk.CTkFrame):
             entries[key] = entry
 
         existing_notes = None
-        profile_id = profile_row['id'] if profile_row else None
 
         if mode == "edit" and profile_id:
             try:
@@ -244,24 +277,36 @@ class DashboardFrame(ctk.CTkFrame):
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
             try:
-                cursor.execute("SELECT id, service_name, username, url FROM password_profiles WHERE user_id = ?",
-                               (user_id,))
+                cursor.execute(
+                    "SELECT id, service_name, username, url FROM password_profiles WHERE user_id = ?",
+                    (user_id,)
+                )
                 rows = cursor.fetchall()
             except sqlite3.OperationalError:
                 rows = []
 
+        search_query = self.search_var.get().strip().lower() if self.search_var else ""
         if not rows:
             ctk.CTkLabel(self.profiles_frame, text="No profiles found.", text_color="#e0c97f").pack(pady=10)
             return
 
+        if search_query:
+            def match(row):
+                return any(
+                    search_query in ((row[field] or "").lower())
+                    for field in ("service_name", "username", "url")
+                )
+
+            rows = [row for row in rows if match(row)]
+            if not rows:
+                ctk.CTkLabel(self.profiles_frame, text="No profiles match your search.", text_color="#e0c97f").pack(pady=10)
+                return
+
         # Header
         header = ctk.CTkFrame(self.profiles_frame, fg_color="transparent")
         header.pack(fill="x", pady=5)
-        ctk.CTkLabel(header, text="Service", width=100, anchor="w", text_color="#b8860b",
-                     font=("Arial", 12, "bold")).pack(side="left", padx=5)
-        ctk.CTkLabel(header, text="Username", width=100, anchor="w", text_color="#b8860b",
-                     font=("Arial", 12, "bold")).pack(side="left", padx=5)
-
+        ctk.CTkLabel(header, text="Service", width=100, anchor="w", text_color="#b8860b", font=("Arial", 12, "bold")).pack(side="left", padx=5)
+        ctk.CTkLabel(header, text="Username", width=100, anchor="w", text_color="#b8860b", font=("Arial", 12, "bold")).pack(side="left", padx=5)
         for row in rows:
             row_frame = ctk.CTkFrame(self.profiles_frame, fg_color="#2d2d2d", corner_radius=10)
             row_frame.pack(fill="x", pady=2, padx=2)
@@ -333,3 +378,13 @@ class DashboardFrame(ctk.CTkFrame):
         btn_del = ctk.CTkButton(frame, text="DELETE", command=do_delete, fg_color="#e06c6c", hover_color="#b22222",
                                 text_color="#232323", width=200)
         btn_del.pack(pady=10)
+
+    def _on_search_change(self, *args):
+        # перерисовать список при каждом вводе
+        self.refresh_profiles()
+
+    def _clear_search(self):
+        if self.search_var.get():
+            self.search_var.set("")
+        else:
+            self.refresh_profiles()
