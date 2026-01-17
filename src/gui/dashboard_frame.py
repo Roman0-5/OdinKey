@@ -114,10 +114,10 @@ class DashboardFrame(ctk.CTkFrame):
         entries = {}
 
         fields = [
-            ("service", "Service Name *"),
+            ("service", "Service Name !"),
             ("url", "URL (optional)"),
-            ("username", "Username *"),
-            ("password", "Password *")
+            ("username", "Username !"),
+            ("password", "Password !")
         ]
 
         placeholders = {
