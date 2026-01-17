@@ -66,6 +66,7 @@ class DashboardFrame(ctk.CTkFrame):
             fg_color="#1b1b1b",
             hover_color="#333333",
             text_color="#e0c97f",
+            font=("Norse", 18, "bold"),
             corner_radius=14,
             border_width=1,
             border_color="#e0c97f"

@@ -72,9 +72,13 @@ class StartWindow:
         self.frame = ctk.CTkFrame(self.master, fg_color="#232323")
         self.frame.pack(fill="both", expand=True)
         self.active_frame = None
-        self.session = None
+        self.session = session
+        self._auto_logout_flag = False
+        self._watchdog_active = True
         self.master.bind("<Configure>", self.on_resize)
         self.set_background()
+        self.session.set_expire_callback(self._on_session_expire)
+        self.master.after(1000, self._session_watchdog)
 
         exists = repo.account_exists()
 
@@ -99,6 +103,7 @@ class StartWindow:
 
     def show_login(self):
         self.clear_active_frame()
+        self._auto_logout_flag = False
         self.active_frame = LoginFrame(
             self.frame,
             on_login=self.login,
@@ -174,11 +179,26 @@ class StartWindow:
         result = self.service.login(username, password)
         if result:
             account, master_key = result
-            self.session = session
             self.session.start(account, master_key)
             self.show_success_modal("Login successful!", on_close=self.open_dashboard)
         else:
             self.show_error_modal("Wrong username or password.")
+
+    def _on_session_expire(self):
+        """Background session callback; only set flag (thread-safe)."""
+        self._auto_logout_flag = True
+
+    def _session_watchdog(self):
+        """Poll session flag from Tk thread, similar zu CLI-Loop."""
+        if not self._watchdog_active:
+            return
+
+        if self._auto_logout_flag:
+            self._auto_logout_flag = False
+            self.show_error_modal("Session expired! Please log in again.", on_close=self.show_login)
+
+        if self.master.winfo_exists():
+            self.master.after(1000, self._session_watchdog)
 
     def show_error_modal(self, message, on_close=None):
         modal = ctk.CTkToplevel(self.master)
