@@ -1,4 +1,5 @@
-data/
 __pycache__
 .venv/
 .idea
+data/odinkey.db
+*.db

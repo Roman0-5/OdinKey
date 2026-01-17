@@ -1,13 +1,19 @@
 import customtkinter as ctk
+import sqlite3
+# Wir brauchen keine direkten Repository/DB Imports mehr, das macht jetzt der Service!
 from src.core.password_profile import PasswordProfile
-from src.database.password_profile_repository import PasswordProfileRepository
-from src.database.connection import DatabaseConnection
+from src.utils.clipboard import copy_with_timeout
+from src.database.connection import DatabaseConnection  # Nur noch für Daten-Abruf (Read) nötig
+from src.database.password_profile_repository import PasswordProfileRepository  # Für Read-Operationen
+from colorama import Fore, Style
 
 
 class DashboardFrame(ctk.CTkFrame):
-    def __init__(self, master, session, show_success_modal, show_error_modal, *args, **kwargs):
+
+    def __init__(self, master, session, profile_service, show_success_modal, show_error_modal, *args, **kwargs):
         super().__init__(master, fg_color="#232323", corner_radius=20, *args, **kwargs)
         self.session = session
+        self.profile_service = profile_service
         self.show_success_modal = show_success_modal
         self.show_error_modal = show_error_modal
         self.profiles_frame = None
@@ -22,7 +28,7 @@ class DashboardFrame(ctk.CTkFrame):
             text_color="#e0c97f"
         ).pack(pady=(20, 10))
 
-        # Centered ADD button above the profiles list
+        # ADD Button
         self.add_btn = ctk.CTkButton(
             self,
             text="ADD NEW PROFILE",
@@ -37,17 +43,19 @@ class DashboardFrame(ctk.CTkFrame):
         )
         self.add_btn.pack(pady=(10, 5), padx=30)
 
-        self.profiles_frame = ctk.CTkFrame(self, fg_color="#232323", corner_radius=20, border_width=1, border_color="#e0c97f")
+        # Liste der Profile
+        self.profiles_frame = ctk.CTkScrollableFrame(self, fg_color="#232323", corner_radius=20, border_width=1,
+                                                     border_color="#e0c97f")
         self.profiles_frame.pack(pady=10, padx=20, fill="both", expand=True)
         self.refresh_profiles()
 
     def open_add_modal(self):
         self._open_profile_modal(mode="add")
 
-    def open_edit_modal(self, profile_row):
-        self._open_profile_modal(mode="edit", profile_row=profile_row)
+    def open_edit_modal(self, profile_id):
+        self._open_profile_modal(mode="edit", profile_id=profile_id)
 
-    def _open_profile_modal(self, mode="add", profile_row=None):
+    def _open_profile_modal(self, mode="add", profile_id=None):
         modal = ctk.CTkToplevel(self)
         modal.title("Add Profile" if mode == "add" else "Edit Profile")
         modal.geometry("540x600")  # tightened layout removes scroll need
@@ -161,31 +169,33 @@ class DashboardFrame(ctk.CTkFrame):
 
         def save():
             try:
-                session = self.session
-                if session is None or not session.is_active():
-                    self.show_error_modal("Session is not active. Please re-login.")
+                if not self.session.is_active():
+                    self.show_error_modal("Session expired.")
                     return
-                user_id = session.account.id
-                master_key = session.get_master_key()
+
                 profile = PasswordProfile(
-                    user_id=user_id,
+                    user_id=self.session.account.id,
                     service_name=entries['service'].get(),
                     url=entries['url'].get(),
                     username=entries['username'].get(),
-                    password=entries['password'].get()
+                    password=entries['password'].get(),
+                    notes=existing_notes
                 )
-                db_conn = DatabaseConnection()
-                repo = PasswordProfileRepository(db_conn, master_key)
+
+                # Einfache Validierung vorab
                 if not profile.service_name or not profile.username or not profile.password:
-                    self.show_error_modal("Service, Username, and Password are required.")
+                    self.show_error_modal("Please fill all mandatory fields (*).")
                     return
+
+
                 if mode == "add":
-                    repo.create_profile(profile)
-                    self.show_success_modal("Password profile saved!", on_close=self.refresh_profiles)
-                elif mode == "edit" and profile_row:
-                    profile.id = profile_row['id']
-                    repo.update_profile(profile)
-                    self.show_success_modal("Profile updated!", on_close=self.refresh_profiles)
+                    self.profile_service.create_profile(profile)
+                    self.show_success_modal("Saved!", on_close=self.refresh_profiles)
+                elif mode == "edit" and profile_id:
+                    profile.id = profile_id
+                    self.profile_service.update_profile(profile)
+                    self.show_success_modal("Updated!", on_close=self.refresh_profiles)
+
                 modal.destroy()
             except Exception as e:
                 self.show_error_modal(f"Error: {e}")
@@ -207,55 +217,119 @@ class DashboardFrame(ctk.CTkFrame):
         )
         save_btn.pack(side="left")
 
-    # save_profile is now handled in the modal
+    def copy_password(self, profile_id):
+        try:
+            db_conn = DatabaseConnection()
+            repo = PasswordProfileRepository(db_conn, self.session.get_master_key())
+            profile = repo.get_profile_by_id(profile_id)
+            if profile and copy_with_timeout(profile.password, timeout=180):
+                self.show_success_modal("Password copied! (Clears in 3 Minutes)")
+            else:
+                self.show_error_modal("Could not copy password.")
+        except Exception as e:
+            self.show_error_modal(f"Copy Error: {e}")
 
     def refresh_profiles(self):
         for widget in self.profiles_frame.winfo_children():
             widget.destroy()
-        session = self.session
-        if session is None or not session.is_active():
-            ctk.CTkLabel(self.profiles_frame, text="Session not active", text_color="#e06c6c").pack()
+
+        if not self.session or not self.session.is_active():
             return
-        user_id = session.account.id
-        master_key = session.get_master_key()
+
+        user_id = self.session.account.id
         db_conn = DatabaseConnection()
-        repo = PasswordProfileRepository(db_conn, master_key)
-        import sqlite3
+
+        # Read-Only Zugriff für die Liste
         with db_conn.connect() as conn:
             conn.row_factory = sqlite3.Row
             cursor = conn.cursor()
-            cursor.execute("SELECT * FROM password_profiles WHERE user_id = ?", (user_id,))
-            rows = cursor.fetchall()
+            try:
+                cursor.execute("SELECT id, service_name, username, url FROM password_profiles WHERE user_id = ?",
+                               (user_id,))
+                rows = cursor.fetchall()
+            except sqlite3.OperationalError:
+                rows = []
+
         if not rows:
-            ctk.CTkLabel(self.profiles_frame, text="No profiles yet.", text_color="#e0c97f").pack()
+            ctk.CTkLabel(self.profiles_frame, text="No profiles found.", text_color="#e0c97f").pack(pady=10)
             return
+
+        # Header
+        header = ctk.CTkFrame(self.profiles_frame, fg_color="transparent")
+        header.pack(fill="x", pady=5)
+        ctk.CTkLabel(header, text="Service", width=100, anchor="w", text_color="#b8860b",
+                     font=("Arial", 12, "bold")).pack(side="left", padx=5)
+        ctk.CTkLabel(header, text="Username", width=100, anchor="w", text_color="#b8860b",
+                     font=("Arial", 12, "bold")).pack(side="left", padx=5)
+
         for row in rows:
-            row_frame = ctk.CTkFrame(self.profiles_frame, fg_color="#232323")
+            row_frame = ctk.CTkFrame(self.profiles_frame, fg_color="#2d2d2d", corner_radius=10)
             row_frame.pack(fill="x", pady=2, padx=2)
-            ctk.CTkLabel(row_frame, text=row["service_name"], width=90, anchor="w", text_color="#e0c97f").pack(side="left", padx=2)
-            ctk.CTkLabel(row_frame, text=row["username"], width=90, anchor="w", text_color="#e0c97f").pack(side="left", padx=2)
-            ctk.CTkLabel(row_frame, text=row["url"], width=120, anchor="w", text_color="#e0c97f").pack(side="left", padx=2)
-            ctk.CTkLabel(row_frame, text=row["notes"] or "", width=80, anchor="w", text_color="#e0c97f").pack(side="left", padx=2)
-            edit_btn = ctk.CTkButton(row_frame, text="Edit", command=lambda r=row: self.open_edit_modal(r), fg_color="#e0c97f", hover_color="#b8860b", text_color="#232323", width=50, corner_radius=10, font=("Norse", 12))
-            edit_btn.pack(side="left", padx=2)
-            del_btn = ctk.CTkButton(row_frame, text="Delete", command=lambda r=row: self.delete_profile(r), fg_color="#e06c6c", hover_color="#b8860b", text_color="#232323", width=60, corner_radius=10, font=("Norse", 12))
-            del_btn.pack(side="left", padx=2)
+
+            ctk.CTkLabel(row_frame, text=row["service_name"], width=100, anchor="w", text_color="#e0c97f").pack(
+                side="left", padx=5)
+            ctk.CTkLabel(row_frame, text=row["username"], width=100, anchor="w", text_color="#e0c97f").pack(side="left",
+                                                                                                            padx=5)
+
+            btn_frame = ctk.CTkFrame(row_frame, fg_color="transparent")
+            btn_frame.pack(side="right", padx=5, pady=5)
+
+            ctk.CTkButton(btn_frame, text="🔑", width=40, command=lambda id=row['id']: self.copy_password(id),
+                          fg_color="#232323", hover_color="#e0c97f", text_color="#e0c97f").pack(side="left", padx=2)
+
+            ctk.CTkButton(btn_frame, text="Edit", width=50, command=lambda id=row['id']: self.open_edit_modal(id),
+                          fg_color="#e0c97f", hover_color="#b8860b", text_color="#232323").pack(side="left", padx=2)
+
+
+            ctk.CTkButton(btn_frame, text="Del", width=50, command=lambda r=row: self.confirm_delete(r),
+                          fg_color="#e06c6c", hover_color="#b8860b", text_color="#232323").pack(side="left", padx=2)
 
     def get_entries(self):
-        # Only the ADD button is resizable here
         return [self.add_btn] if self.add_btn else []
 
-    def delete_profile(self, profile_row):
-        try:
-            session = self.session
-            if session is None or not session.is_active():
-                self.show_error_modal("Session is not active. Please re-login.")
-                return
-            user_id = session.account.id
-            master_key = session.get_master_key()
-            db_conn = DatabaseConnection()
-            repo = PasswordProfileRepository(db_conn, master_key)
-            repo.delete_profile(profile_row['id'])
-            self.show_success_modal("Profile deleted!", on_close=self.refresh_profiles)
-        except Exception as e:
-            self.show_error_modal(f"Error: {e}")
+    # Modal für sicheres Löschen
+    def confirm_delete(self, profile_row):
+        modal = ctk.CTkToplevel(self)
+        modal.title("Confirm Delete")
+        modal.geometry("300x200")
+        modal.resizable(False, False)
+        modal.grab_set()
+        modal.configure(bg="#232323")
+
+        modal.update_idletasks()
+        x = self.master.winfo_x() + (self.master.winfo_width() // 2) - (300 // 2)
+        y = self.master.winfo_y() + (self.master.winfo_height() // 2) - (200 // 2)
+        modal.geometry(f"+{x}+{y}")
+
+        frame = ctk.CTkFrame(modal, fg_color="#232323", corner_radius=20, border_width=2, border_color="#e06c6c")
+        frame.pack(fill="both", expand=True, padx=10, pady=10)
+
+        ctk.CTkLabel(frame, text="Confirm Deletion", font=("Norse", 18, "bold"), text_color="#e06c6c").pack(
+            pady=(15, 5))
+        ctk.CTkLabel(frame, text="Enter Master Password:", text_color="#e0c97f").pack(pady=5)
+
+        pw_entry = ctk.CTkEntry(frame, show="*", width=200, fg_color="#2d2d2d", border_color="#e0c97f",
+                                text_color="#e0c97f")
+        pw_entry.pack(pady=5)
+
+        def do_delete():
+            password = pw_entry.get()
+            try:
+                #Service prüft Passwort UND löscht
+                self.profile_service.delete_profile_securely(
+                    profile_row['id'],
+                    self.session.account.username,
+                    password
+                )
+
+                modal.destroy()
+                self.show_success_modal("Deleted successfully!", on_close=self.refresh_profiles)
+
+            except PermissionError:
+                self.show_error_modal("Wrong Master Password!")
+            except Exception as e:
+                self.show_error_modal(f"Error: {e}")
+
+        btn_del = ctk.CTkButton(frame, text="DELETE", command=do_delete, fg_color="#e06c6c", hover_color="#b22222",
+                                text_color="#232323", width=200)
+        btn_del.pack(pady=10)
