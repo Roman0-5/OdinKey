@@ -157,6 +157,6 @@ class _Session:
             return self._master_key
 
 
-# Module-Level Singleton Instance
+# Module-Level Singleton Instance (used by CLI and GUI defaults)
 session = _Session()
-#session = _Session(timeout_seconds=10) #test
+# session = _Session(timeout_seconds=10)  # test override

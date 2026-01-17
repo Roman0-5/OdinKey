@@ -38,6 +38,7 @@ def load_custom_font(font_path):
 from src.gui.login_frame import LoginFrame
 from src.gui.registration_frame import RegistrationFrame
 from src.gui.dashboard_frame import DashboardFrame
+from src.core.session import session
 
 
 class StartWindow:
@@ -173,8 +174,7 @@ class StartWindow:
         result = self.service.login(username, password)
         if result:
             account, master_key = result
-            from src.core.session import Session
-            self.session = Session()
+            self.session = session
             self.session.start(account, master_key)
             self.show_success_modal("Login successful!", on_close=self.open_dashboard)
         else:
