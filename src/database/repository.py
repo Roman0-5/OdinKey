@@ -20,7 +20,7 @@ class MasterAccountRepository:
         conn.commit()
         conn.close()
 
-    def account_exists(self) -> bool:
+    def account_exists(self) -> bool: #FMR1
         #Prüft, ob bereits ein Master Account existiert (egal welcher).
         conn = self.db_connection.connect()
         cursor = conn.cursor()

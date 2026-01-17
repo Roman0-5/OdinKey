@@ -49,7 +49,7 @@ class PasswordProfileRepository:
         self.master_key = master_key #32-Byte Key abgeleitet vom Master-Passwort - dient zur ver- und entschlüsselung
         self.crypto = Encryption() #Instanz der Encryption Klasse
 
-    def create_profile(self, profile: PasswordProfile) -> int:
+    def create_profile(self, profile: PasswordProfile) -> int: #FMR12
         """
         Verschlüsselt das Passwort und speichert das Profil.
         """

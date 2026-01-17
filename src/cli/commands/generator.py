@@ -184,7 +184,7 @@ def generate_wildcard(
     return result
 
 # TUI stuff
-def generate():
+def generate(): #FMR5
     """Main generator menu - choose algorithm."""
     print("\n" + Fore.CYAN + "Willkommen im Passwort Generator Menü!" + Style.RESET_ALL)
 
@@ -193,7 +193,7 @@ def generate():
     print(f"  {Fore.GREEN}2{Style.RESET_ALL} - Pronounceable (Aussprechbar)")
     print(f"  {Fore.GREEN}3{Style.RESET_ALL} - Passphrase    (Mehrere Wörter) *")
     print(f"  {Fore.GREEN}4{Style.RESET_ALL} - Pattern       (Strukturiert)")
-    print(f"  {Fore.GREEN}5{Style.RESET_ALL} - Wildcard      (Eigenes Template)")
+    print(f"  {Fore.GREEN}5{Style.RESET_ALL} - Wildcard      (Eigenes Template)") #FMR6
 
     choice = input("\n" + Fore.CYAN + "Algorithmus (1-5, Enter für 1): " + Style.RESET_ALL).strip()
 

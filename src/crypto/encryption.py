@@ -5,7 +5,7 @@ from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 
 class Encryption:
-
+#NFMR7
     def derive_key(self, password:str, salt: bytes) -> bytes:
         # Erstellt ein KDF (Key Derivation Function) Objekt, PBKDF2HMAC ist Funktion von cryptography
         kdf = PBKDF2HMAC(

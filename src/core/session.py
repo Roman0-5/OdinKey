@@ -25,7 +25,7 @@ class _Session:
     - timeout_seconds: duration in seconds until the session expires after start or touch.
     """
 
-    def __init__(self, time_provider: Callable[[], float] = time.time, timeout_seconds: int = 600):
+    def __init__(self, time_provider: Callable[[], float] = time.time, timeout_seconds: int = 600): #FMR13, NFMR8
         self._time = time_provider
         self.timeout_seconds = timeout_seconds
 

@@ -1,4 +1,4 @@
-import secrets
+import secrets #NFMR3
 import string
 """
 secrets is die Kryptographie Library, die auch CSPRN konform ist
@@ -33,7 +33,7 @@ class PasswordGenerator:
         else:
             return False
 
-    def generate_random(
+    def generate_random( #FMR4
             self,
             length: int = 16,
             use_uppercase: bool = True,

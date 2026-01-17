@@ -1,4 +1,4 @@
-from argon2 import PasswordHasher
+from argon2 import PasswordHasher #NFMR2
 from argon2.exceptions import VerifyMismatchError
 
 class Hashing:
@@ -9,7 +9,7 @@ class Hashing:
 
 
     # mit "ph" Master-PW hashen
-    def hash_master_password(self, password: str) -> str:
+    def hash_master_password(self, password: str) -> str: #FMR3
         hashed_password = self.ph.hash(password)
         return hashed_password
 

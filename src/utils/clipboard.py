@@ -10,7 +10,7 @@ def clear_clipboard():
         pass  # Fehler ignorieren, falls Clipboard blockiert ist
 
 
-def copy_with_timeout(text, timeout=60):
+def copy_with_timeout(text, timeout=180): #NFMR10
     """
     Kopiert Text in die Zwischenablage und löscht ihn automatisch nach X Sekunden.
     Startet einen Hintergrund-Timer.

@@ -21,7 +21,7 @@ def ask_bool(prompt, default=True):
     if not val:
         return default
     return val in ["y", "yes", "j", "ja"]
-def add():
+def add(): #FMR7, NFMR4, NMFR5
     """Fügt ein neues Passwort hinzu und verschlüsselt es."""
     if not session.is_active():
         print(Fore.RED + "Zugriff verweigert. Bitte einloggen" + Style.RESET_ALL)
@@ -125,8 +125,7 @@ def reveal_password(profile_id):
         if profile and profile.user_id == session.account.id:
             print(f"Eintrag gefunden: {Fore.CYAN}{profile.service_name} ({profile.username}){Style.RESET_ALL}")
 
-            # <--- HIER: Aufruf der zentralen Utility-Funktion
-            if copy_with_timeout(profile.password, timeout=180):
+            if copy_with_timeout(profile.password, timeout=180): #FMR14
                 print(f"{Fore.GREEN} Passwort wurde in die Zwischenablage kopiert!{Style.RESET_ALL}")
                 print(f"{Fore.YELLOW}(Sicherheits-Feature: Zwischenablage leert sich in 3 Minuten){Style.RESET_ALL}")
 
@@ -172,7 +171,7 @@ def delete():
     if not id_str:
         return
 
-    try:
+    try: #FMR11
         profile_id = int(id_str)
 
         print(Fore.YELLOW + "Master-Passwort erforderlich" + Style.RESET_ALL)
@@ -197,7 +196,7 @@ def delete():
         print(Fore.RED + f"Fehler: {e}" + Style.RESET_ALL)
 
 
-def search():
+def search(): #FMR8, NMFR6
     """Sucht nach Einträgen über das Repository."""
     if not session.is_active():
         return
@@ -296,14 +295,14 @@ def edit():
         print(Fore.RED + f"\n Fehler beim Speichern: {e}" + Style.RESET_ALL)
 
 
-def manage_menu():
+def manage_menu(): #FMR9
     if not session.is_active():
         print(Fore.RED + "Zugriff verweigert." + Style.RESET_ALL)
         return
 
     while True:
         print(f"\n{Fore.CYAN}--- Passwortprofil Verwalten ---{Style.RESET_ALL}")
-        print(" 1. Bearbeiten")
+        print(" 1. Bearbeiten") #FMR10
         print(" 2. Löschen")
         print(" 0. Zurück zum Hauptmenü")
 

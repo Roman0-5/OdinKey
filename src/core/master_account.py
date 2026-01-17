@@ -5,7 +5,7 @@ class MasterAccount:
         self.username = username
         self.password = password
     @staticmethod
-    def validate_password(password: str) -> tuple[bool, str]:
+    def validate_password(password: str) -> tuple[bool, str]: #FMR2, NFMR1
         if not password:
             return False, "Passwort darf nicht leer sein"
         if len(password) < 8:
