@@ -95,6 +95,7 @@ COMMANDS = {
     # auth
     'login': cmd_login,
     'register': auth.register,
+    'logout': auth.logout,
     # generator
     'generate': generator.generate,
     'gen': generator.generate,
