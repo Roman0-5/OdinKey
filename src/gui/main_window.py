@@ -76,6 +76,17 @@ class StartWindow:
         self._auto_logout_flag = False
         self._watchdog_active = True
         self.master.bind("<Configure>", self.on_resize)
+        event_sequences = (
+            "<Key>",
+            "<KeyRelease>",
+            "<Button>",
+            "<ButtonRelease>",
+            "<MouseWheel>",
+            "<Motion>",
+            "<FocusIn>",
+        )
+        for sequence in event_sequences:
+            self.master.bind_all(sequence, self._touch_session_event)
         self.set_background()
         self.session.set_expire_callback(self._on_session_expire)
         self.master.after(1000, self._session_watchdog)
@@ -116,8 +127,7 @@ class StartWindow:
         self.active_frame = RegistrationFrame(
             self.frame,
             on_register=self.create_master,
-            show_logo=self.show_logo,
-            on_back=self.show_login
+            show_logo=self.show_logo
         )
         self.active_frame.pack(fill="both", expand=True)
 
@@ -199,6 +209,11 @@ class StartWindow:
 
         if self.master.winfo_exists():
             self.master.after(1000, self._session_watchdog)
+
+    def _touch_session_event(self, event=None):
+        """Keep session alive while the user interacts with the GUI."""
+        if self.session:
+            self.session.touch()
 
     def show_error_modal(self, message, on_close=None):
         modal = ctk.CTkToplevel(self.master)

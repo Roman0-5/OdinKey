@@ -21,6 +21,10 @@ class DashboardFrame(ctk.CTkFrame):
         self.search_var = ctk.StringVar(value="")
         self._build()
 
+    def _touch_session(self):
+        if self.session:
+            self.session.touch()
+
     def _build(self):
         ctk.CTkLabel(
             self,
@@ -91,6 +95,7 @@ class DashboardFrame(ctk.CTkFrame):
         self._open_profile_modal(mode="edit", profile_id=profile_id)
 
     def _open_profile_modal(self, mode="add", profile_id=None):
+        self._touch_session()
         modal = ctk.CTkToplevel(self)
         modal.title("Add Profile" if mode == "add" else "Edit Profile")
         modal.geometry("540x600")  # tightened layout removes scroll need
@@ -111,7 +116,10 @@ class DashboardFrame(ctk.CTkFrame):
         ctk.CTkLabel(frame, text=("Add New Profile" if mode=="add" else "Edit Profile"), font=("Norse", 28, "bold"), text_color="#e0c97f", fg_color="transparent").pack(pady=(4, 6))
         form = ctk.CTkFrame(frame, fg_color="#232323")
         form.pack(fill="both", expand=True, padx=8, pady=(0, 2))
+        form_inner = ctk.CTkFrame(form, fg_color="#232323")
+        form_inner.pack(pady=4, padx=40)
         entries = {}
+        entry_width = 250
 
         fields = [
             ("service", "Service Name !"),
@@ -128,18 +136,80 @@ class DashboardFrame(ctk.CTkFrame):
         }
 
         for key, label_text in fields:
-            row = ctk.CTkFrame(form, fg_color="#232323")
-            row.pack(fill="x", pady=6)
-            ctk.CTkLabel(row, text=label_text, font=("Norse", 15), text_color="#e0c97f").pack(side="left")
-            entry = ctk.CTkEntry(row, width=340, fg_color="#2d2d2d", border_color="#e0c97f", border_width=2, text_color="#e0c97f", placeholder_text=placeholders.get(key, ""))
-            if key == "password":
-                entry.configure(show="*")
-                entry.pack(side="right", padx=(12, 0))
+            row = ctk.CTkFrame(form_inner, fg_color="#232323")
+            row.pack(pady=6, anchor="center")
+            row.grid_columnconfigure(0, weight=0)
+            row.grid_columnconfigure(1, weight=0)
+
+            ctk.CTkLabel(
+                row,
+                text=label_text,
+                font=("Norse", 15),
+                text_color="#e0c97f",
+                width=120
+            ).grid(row=0, column=0, sticky="e", padx=(0, 14))
+
+            entry_container = ctk.CTkFrame(row, fg_color="transparent")
+            entry_container.grid(row=0, column=1, padx=(0, 12))
+            entry_container.configure(width=entry_width)
+            entry_container.grid_propagate(False)
+            password_offset = 48
+            current_width = entry_width - password_offset if key == "password" else entry_width
+            entry_options = {
+                "width": max(120, current_width),
+                "fg_color": "#2d2d2d",
+                "border_color": "#e0c97f",
+                "border_width": 2,
+                "text_color": "#e0c97f",
+                "placeholder_text": placeholders.get(key, "")
+            }
+            is_password_field = key == "password"
+            if is_password_field:
+                entry_options["show"] = "*"
+
+            if is_password_field:
+                password_visible = ctk.BooleanVar(master=self, value=False)
+                entry = ctk.CTkEntry(entry_container, **entry_options)
                 entries[key] = entry
+                entry.configure(show="*")
+                entry.pack(side="left", fill="x", expand=True, padx=(0, 6))
+
+                def toggle_visibility():
+                    visible = not password_visible.get()
+                    password_visible.set(visible)
+                    entry.configure(show="" if visible else "*")
+                    toggle_btn.configure(text="🙈" if visible else "👁")
+
+                toggle_btn = ctk.CTkButton(
+                    entry_container,
+                    text="👁",
+                    width=38,
+                    command=toggle_visibility,
+                    fg_color="#1b1b1b",
+                    hover_color="#444444",
+                    text_color="#e0c97f",
+                    font=("Norse", 18),
+                    corner_radius=8,
+                    border_width=1,
+                    border_color="#e0c97f"
+                )
+                toggle_btn.pack(side="left")
+
                 # --- Password Generator Controls (random only) ---
                 generator_box = ctk.CTkFrame(frame, fg_color="#1f1f1f", corner_radius=18, border_width=1, border_color="#e0c97f")
-                generator_box.pack(fill="x", padx=8, pady=(4, 4))
-                ctk.CTkLabel(generator_box, text="Password Generator", font=("Norse", 18, "bold"), text_color="#e0c97f").pack(anchor="w", padx=14, pady=(8, 2))
+                generator_box.pack(fill="x", padx=24, pady=(6, 6))
+                ctk.CTkLabel(
+                    generator_box,
+                    text="Password Generator (optional)",
+                    font=("Norse", 18, "bold"),
+                    text_color="#e0c97f"
+                ).pack(anchor="w", padx=14, pady=(8, 0))
+                ctk.CTkLabel(
+                    generator_box,
+                    text="Tweak these options whenever you need us to craft a password",
+                    font=("Arial", 11),
+                    text_color="#b8860b"
+                ).pack(anchor="w", padx=14, pady=(0, 8))
 
                 length_row = ctk.CTkFrame(generator_box, fg_color="#1f1f1f")
                 length_row.pack(fill="x", padx=12, pady=(0, 6))
@@ -153,16 +223,33 @@ class DashboardFrame(ctk.CTkFrame):
                 special_var = ctk.BooleanVar(value=False)
 
                 checkbox_grid = ctk.CTkFrame(generator_box, fg_color="#1f1f1f")
-                checkbox_grid.pack(fill="x", padx=8, pady=(0, 10))
-                options = [("Uppercase", uppercase_var), ("Lowercase", lowercase_var), ("Digits", digits_var), ("Special Characters", special_var)]
+                checkbox_grid.pack(fill="x", padx=12, pady=(0, 10))
+                checkbox_grid.grid_columnconfigure((0, 1), weight=1)
+                options = [
+                    ("Uppercase", uppercase_var),
+                    ("Lowercase", lowercase_var),
+                    ("Digits", digits_var),
+                    ("Special Characters", special_var)
+                ]
                 for idx, (text, var) in enumerate(options):
-                    row, col = divmod(idx, 2)
-                    chk = ctk.CTkCheckBox(checkbox_grid, text=text, variable=var, font=("Norse", 13), text_color="#e0c97f", fg_color="#1f1f1f", border_color="#e0c97f")
-                    chk.grid(row=row, column=col, padx=10, pady=4, sticky="w")
+                    cb_row, col = divmod(idx, 2)
+                    chk = ctk.CTkCheckBox(
+                        checkbox_grid,
+                        text=text,
+                        variable=var,
+                        font=("Norse", 13),
+                        text_color="#e0c97f",
+                        fg_color="#1f1f1f",
+                        border_color="#e0c97f"
+                    )
+                    chk.grid(row=cb_row, column=col, padx=6, pady=4, sticky="w")
 
                 def generate_password():
+                    self._touch_session()
                     from src.services.password_generator_service import PasswordGeneratorService
                     service = PasswordGeneratorService()
+                    if not str(entry):
+                        return
                     result = service.generate_password(
                         length=length_var.get(),
                         use_uppercase=uppercase_var.get(),
@@ -173,13 +260,33 @@ class DashboardFrame(ctk.CTkFrame):
                     if result["success"]:
                         entry.delete(0, "end")
                         entry.insert(0, result["password"])
+                        entry.configure(show="" if password_visible.get() else "*")
+                        print(
+                            "[GUI] Generated password:",
+                            result["password"],
+                            f"(length {result['length']})"
+                        )
                     else:
                         self.show_error_modal(result["error"])
 
-                ctk.CTkButton(generator_box, text="Generate Password", command=generate_password, fg_color="#b8860b", hover_color="#e0c97f", text_color="#232323", font=("Norse", 16, "bold"), width=220, height=38, corner_radius=18).pack(pady=(4, 8))
+                ctk.CTkButton(
+                    generator_box,
+                    text="Generate Password",
+                    command=generate_password,
+                    fg_color="#b8860b",
+                    hover_color="#e0c97f",
+                    text_color="#232323",
+                    font=("Norse", 16, "bold"),
+                    width=210,
+                    height=38,
+                    corner_radius=18
+                ).pack(pady=(6, 8))
+
                 continue
-            entry.pack(side="right", padx=(12, 0))
-            entries[key] = entry
+            else:
+                entry = ctk.CTkEntry(entry_container, **entry_options)
+                entries[key] = entry
+                entry.pack(fill="both", expand=True)
 
         existing_notes = None
 
@@ -202,6 +309,7 @@ class DashboardFrame(ctk.CTkFrame):
                 return
 
         def save():
+            self._touch_session()
             try:
                 if not self.session.is_active():
                     self.show_error_modal("Session expired.")
@@ -218,7 +326,13 @@ class DashboardFrame(ctk.CTkFrame):
 
                 # Einfache Validierung vorab
                 if not profile.service_name or not profile.username or not profile.password:
-                    self.show_error_modal("Please fill all mandatory fields (*).")
+                    self.show_error_modal("Please fill all mandatory fields (!).")
+                    return
+                if len(profile.password) < 8:
+                    self.show_error_modal("Password is too short (min 8 characters).")
+                    return
+                if len(profile.password) > 64:
+                    self.show_error_modal("Password is too long (max 64 characters).")
                     return
 
 
@@ -235,7 +349,20 @@ class DashboardFrame(ctk.CTkFrame):
                 self.show_error_modal(f"Error: {e}")
         btn_row = ctk.CTkFrame(frame, fg_color="transparent")
         btn_row.pack(pady=(8, 0))
-        cancel_btn = ctk.CTkButton(btn_row, text="CANCEL", command=modal.destroy, fg_color="#1b1b1b", hover_color="#333333", text_color="#e0c97f", font=("Norse", 18, "bold"), width=200, height=44, corner_radius=18, border_width=1, border_color="#e0c97f")
+        cancel_btn = ctk.CTkButton(
+            btn_row,
+            text="CANCEL",
+            command=modal.destroy,
+            fg_color="#232323",
+            hover_color="#383838",
+            text_color="#e0c97f",
+            font=("Norse", 18, "bold"),
+            width=180,
+            height=44,
+            corner_radius=18,
+            border_width=2,
+            border_color="#e0c97f"
+        )
         cancel_btn.pack(side="left", padx=(0, 12))
         save_btn = ctk.CTkButton(
             btn_row,
@@ -245,13 +372,14 @@ class DashboardFrame(ctk.CTkFrame):
             hover_color="#e0c97f",
             text_color="#232323",
             font=("Norse", 18, "bold"),
-            width=200,
+            width=210,
             height=44,
             corner_radius=18
         )
         save_btn.pack(side="left")
 
     def copy_password(self, profile_id):
+        self._touch_session()
         try:
             db_conn = DatabaseConnection()
             repo = PasswordProfileRepository(db_conn, self.session.get_master_key())
@@ -264,6 +392,7 @@ class DashboardFrame(ctk.CTkFrame):
             self.show_error_modal(f"Copy Error: {e}")
 
     def refresh_profiles(self):
+        self._touch_session()
         for widget in self.profiles_frame.winfo_children():
             widget.destroy()
 
@@ -335,6 +464,7 @@ class DashboardFrame(ctk.CTkFrame):
 
     # Modal für sicheres Löschen
     def confirm_delete(self, profile_row):
+        self._touch_session()
         modal = ctk.CTkToplevel(self)
         modal.title("Confirm Delete")
         modal.geometry("300x200")
@@ -359,6 +489,7 @@ class DashboardFrame(ctk.CTkFrame):
         pw_entry.pack(pady=5)
 
         def do_delete():
+            self._touch_session()
             password = pw_entry.get()
             try:
                 #Service prüft Passwort UND löscht
@@ -381,10 +512,12 @@ class DashboardFrame(ctk.CTkFrame):
         btn_del.pack(pady=10)
 
     def _on_search_change(self, *args):
-        # перерисовать список при каждом вводе
+        self._touch_session()
+        # refresh profile list on every keystroke
         self.refresh_profiles()
 
     def _clear_search(self):
+        self._touch_session()
         if self.search_var.get():
             self.search_var.set("")
         else:
