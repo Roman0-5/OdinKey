@@ -45,6 +45,8 @@ class StartWindow:
     """
     Main application window for OdinKey.
     Manages only the active Frame (Login, Registration, Dashboard).
+    Think of it as a very small state machine: we keep exactly one child frame,
+    and swap it whenever the user moves to a new screen.
     """
 
     def __init__(self, master):
@@ -76,6 +78,7 @@ class StartWindow:
         self._auto_logout_flag = False
         self._watchdog_active = True
         self.master.bind("<Configure>", self.on_resize)
+        # Keep the session alive while user interacts anywhere in the window.
         event_sequences = (
             "<Key>",
             "<KeyRelease>",
@@ -134,15 +137,11 @@ class StartWindow:
     def open_dashboard(self):
         self.clear_active_frame()
 
-
-        # 1. Repository erstellen (braucht Master Key aus der Session)
+        # Build profile service with the session's master key so UI never touches raw DB crypto directly.
         profile_repo = PasswordProfileRepository(self.db_conn, self.session.get_master_key())
 
-        # 2. Service erstellen (verbindet Repo und Auth-Service)
         profile_service = PasswordProfileService(profile_repo, self.service)
-        # ---------------------------
-
-        # 3. Service an DashboardFrame übergeben
+        # Pass both the service and session to the dashboard state.
         self.active_frame = DashboardFrame(
             self.frame,
             session=self.session,
@@ -199,7 +198,7 @@ class StartWindow:
         self._auto_logout_flag = True
 
     def _session_watchdog(self):
-        """Poll session flag from Tk thread, similar zu CLI-Loop."""
+        """Every second check if the background thread marked the session as expired."""
         if not self._watchdog_active:
             return
 

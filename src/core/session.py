@@ -16,13 +16,12 @@ class SessionInactiveError(Exception):
 
 
 class _Session:
-    """
-    Manage a user session.
+    """Tiny session manager used by both CLI and GUI.
 
-    Parameters:
-    - time_provider: callable returning current time in seconds (default: time.time).
-      This allows tests to control time.
-    - timeout_seconds: duration in seconds until the session expires after start or touch.
+    Think of it as a stopwatch that always counts down from `timeout_seconds`.
+    Calling `start()` or `touch()` resets the stopwatch, and a background thread
+    watches for the moment when it reaches zero so we can log the user out.
+    Tests can inject their own time provider to simulate passing minutes.
     """
 
     def __init__(self, time_provider: Callable[[], float] = time.time, timeout_seconds: int = 600): #FMR13, NFMR8
@@ -41,7 +40,7 @@ class _Session:
         # Callback for auto logout
         self._on_expire_callback = None
 
-        # Background threads to check for inactivity
+        # Background thread watches the timeout so UI code stays lean.
         self._monitor_thread = None
         self._stop_monitoring = threading.Event()
 

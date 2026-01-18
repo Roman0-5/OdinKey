@@ -9,6 +9,13 @@ from colorama import Fore, Style
 
 
 class DashboardFrame(ctk.CTkFrame):
+    """Single-screen dashboard that lists profiles and shows the add/edit modal.
+
+    The outer window hands in a `session` and `profile_service`, so this frame only
+    worries about rendering widgets and calling service methods. Database objects
+    and encryption details stay hidden from the GUI, which keeps the flow easier
+    to follow for beginners.
+    """
 
     def __init__(self, master, session, profile_service, show_success_modal, show_error_modal, *args, **kwargs):
         super().__init__(master, fg_color="#232323", corner_radius=20, *args, **kwargs)
@@ -22,6 +29,7 @@ class DashboardFrame(ctk.CTkFrame):
         self._build()
 
     def _touch_session(self):
+        # Simple helper so every user action can refresh the timeout with one call.
         if self.session:
             self.session.touch()
 
@@ -89,6 +97,7 @@ class DashboardFrame(ctk.CTkFrame):
         self.refresh_profiles()
 
     def open_add_modal(self):
+        # One entry point for the add modal; edit path reuses the same builder.
         self._open_profile_modal(mode="add")
 
     def open_edit_modal(self, profile_id):
@@ -132,7 +141,7 @@ class DashboardFrame(ctk.CTkFrame):
             "service": "e.g. Gmail",
             "url": "https://service.com",
             "username": "user@example.com",
-            "password": "manual / generator"
+            "password": "manual / password generator"
         }
 
         for key, label_text in fields:
@@ -196,6 +205,7 @@ class DashboardFrame(ctk.CTkFrame):
                 toggle_btn.pack(side="left")
 
                 # --- Password Generator Controls (random only) ---
+                # Inline generator so a beginner can discover it without leaving the form.
                 generator_box = ctk.CTkFrame(frame, fg_color="#1f1f1f", corner_radius=18, border_width=1, border_color="#e0c97f")
                 generator_box.pack(fill="x", padx=24, pady=(6, 6))
                 ctk.CTkLabel(
@@ -204,13 +214,6 @@ class DashboardFrame(ctk.CTkFrame):
                     font=("Norse", 18, "bold"),
                     text_color="#e0c97f"
                 ).pack(anchor="w", padx=14, pady=(8, 0))
-                ctk.CTkLabel(
-                    generator_box,
-                    text="Tweak these options whenever you need us to craft a password",
-                    font=("Arial", 11),
-                    text_color="#b8860b"
-                ).pack(anchor="w", padx=14, pady=(0, 8))
-
                 length_row = ctk.CTkFrame(generator_box, fg_color="#1f1f1f")
                 length_row.pack(fill="x", padx=12, pady=(0, 6))
                 ctk.CTkLabel(length_row, text="Length", font=("Norse", 14), text_color="#e0c97f").pack(side="left")
@@ -245,6 +248,7 @@ class DashboardFrame(ctk.CTkFrame):
                     chk.grid(row=cb_row, column=col, padx=6, pady=4, sticky="w")
 
                 def generate_password():
+                    # Generate a password via service so rules stay consistent with CLI/API.
                     self._touch_session()
                     from src.services.password_generator_service import PasswordGeneratorService
                     service = PasswordGeneratorService()
@@ -288,7 +292,7 @@ class DashboardFrame(ctk.CTkFrame):
                 entries[key] = entry
                 entry.pack(fill="both", expand=True)
 
-        existing_notes = None
+        existing_notes = None  # Notes column exists but is not editable in the current UI.
 
         if mode == "edit" and profile_id:
             try:
@@ -379,6 +383,7 @@ class DashboardFrame(ctk.CTkFrame):
         save_btn.pack(side="left")
 
     def copy_password(self, profile_id):
+        """Load the encrypted record again and push the password into the clipboard."""
         self._touch_session()
         try:
             db_conn = DatabaseConnection()
@@ -464,6 +469,7 @@ class DashboardFrame(ctk.CTkFrame):
 
     # Modal für sicheres Löschen
     def confirm_delete(self, profile_row):
+        """Ask for the master password before deleting a profile."""
         self._touch_session()
         modal = ctk.CTkToplevel(self)
         modal.title("Confirm Delete")
