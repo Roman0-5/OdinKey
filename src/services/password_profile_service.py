@@ -12,12 +12,17 @@ class PasswordProfileService:
         if not profile.service_name or not profile.username or not profile.password:
             raise ValueError("Pflichtfelder fehlen (Service, Username, Password)")
 
+        if len(profile.password) < 8 or len(profile.password) > 64:
+            raise ValueError("Password muss zwischen 8 und 64 Zeichen lang sein")
+
         return self.profile_repo.create_profile(profile)
 
     def update_profile(self, profile):
         """Aktualisiert ein Profil"""
         if not profile.id:
             raise ValueError("Profil hat keine ID")
+        if len(profile.password) < 8 or len(profile.password) > 64:
+            raise ValueError("Password muss zwischen 8 und 64 Zeichen lang sein")
         return self.profile_repo.update_profile(profile)
 
     def delete_profile_securely(self, profile_id: int, username: str, password_attempt: str):
