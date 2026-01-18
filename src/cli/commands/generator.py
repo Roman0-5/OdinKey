@@ -191,7 +191,7 @@ def generate(): #FMR5
     print("\n" + Fore.YELLOW + "Bitte wähle einen Algorithmus:" + Style.RESET_ALL)
     print(f"  {Fore.GREEN}1{Style.RESET_ALL} - Random       (Zufällige Zeichen)")
     print(f"  {Fore.GREEN}2{Style.RESET_ALL} - Pronounceable (Aussprechbar)")
-    print(f"  {Fore.GREEN}3{Style.RESET_ALL} - Passphrase    (Mehrere Wörter) *")
+    print(f"  {Fore.GREEN}3{Style.RESET_ALL} - Passphrase    (Mehrere Wörter)")
     print(f"  {Fore.GREEN}4{Style.RESET_ALL} - Pattern       (Strukturiert)")
     print(f"  {Fore.GREEN}5{Style.RESET_ALL} - Wildcard      (Eigenes Template)") #FMR6
 
